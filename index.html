@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DAEMON // RIM Operations</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0a0c0f;
+    --surface:  #111418;
+    --border:   #1e2530;
+    --accent:   #00ff88;
+    --accent2:  #0088ff;
+    --warn:     #ffaa00;
+    --danger:   #ff3355;
+    --muted:    #4a5568;
+    --text:     #c8d6e5;
+    --text-dim: #718096;
+    --mono:     'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .logo { font-size: 16px; font-weight: 700; letter-spacing: 0.15em; color: var(--accent); }
+  .logo span { color: var(--text-dim); font-weight: 400; }
+
+  .header-meta { display: flex; gap: 20px; align-items: center; color: var(--text-dim); font-size: 11px; }
+  .db-status { display: flex; align-items: center; gap: 5px; }
+
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .dot.ok  { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .dot.err { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+
+  /* ── Summary bars ── */
+  .summary-bar {
+    display: flex;
+    gap: 1px;
+    background: var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary-tile {
+    flex: 1;
+    background: var(--surface);
+    padding: 10px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .summary-tile .label { color: var(--text-dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .summary-tile .value { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .summary-tile .value.warn   { color: var(--warn); }
+  .summary-tile .value.danger { color: var(--danger); }
+  .summary-tile .sub { font-size: 10px; color: var(--text-dim); }
+
+  /* ── Section divider ── */
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 20px;
+    background: #0d1117;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+
+  .section-sub { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+  .section-rule { flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    padding: 1px;
+  }
+
+  .panel { background: var(--surface); display: flex; flex-direction: column; }
+  .panel.full-width { grid-column: 1 / -1; }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    background: #0d1117;
+  }
+
+  .panel-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent2);
+  }
+
+  .panel-count {
+    font-size: 10px;
+    color: var(--text-dim);
+    background: var(--border);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* ── Tables ── */
+  .panel-body { overflow-x: auto; flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; }
+
+  thead th {
+    padding: 6px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  tbody tr { border-bottom: 1px solid #151a22; transition: background 0.1s; }
+  tbody tr:hover { background: #141920; }
+  tbody tr:last-child { border-bottom: none; }
+
+  td { padding: 7px 14px; vertical-align: middle; white-space: nowrap; }
+
+  /* ── Cell types ── */
+  .hostname { color: var(--text); font-weight: 600; }
+  .ip       { color: var(--text-dim); font-family: var(--mono); }
+  .role     { color: var(--text-dim); font-size: 11px; }
+
+  .zone-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: var(--border); color: var(--text-dim); letter-spacing: 0.05em;
+  }
+
+  .domain-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: #0088ff15; color: var(--accent2);
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+
+  .xp-val { font-size: 10px; color: var(--accent); font-weight: 600; }
+
+  .ellipsis {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .na-text {
+    color: var(--text-dim); font-size: 11px;
+    max-width: 240px; overflow: hidden; text-overflow: ellipsis; display: block;
+  }
+
+  .blocker-text {
+    color: var(--danger); font-size: 11px;
+    max-width: 240px; overflow: hidden; text-overflow: ellipsis; display: block;
+  }
+
+  /* ── Status badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; padding: 2px 7px; border-radius: 3px;
+    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+
+  .badge::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+  }
+
+  /* green — online/running/active/achieved */
+  .badge.online, .badge.running, .badge.active, .badge.achieved {
+    background: #00ff8815; color: var(--accent);
+  }
+  .badge.online::before, .badge.running::before,
+  .badge.active::before, .badge.achieved::before {
+    background: var(--accent); box-shadow: 0 0 4px var(--accent);
+  }
+
+  /* red — offline/error/blocked/missed */
+  .badge.offline, .badge.stopped, .badge.error, .badge.blocked, .badge.missed {
+    background: #ff335515; color: var(--danger);
+  }
+  .badge.offline::before, .badge.stopped::before, .badge.error::before,
+  .badge.blocked::before, .badge.missed::before {
+    background: var(--danger);
+  }
+
+  /* yellow — unknown/degraded/pending/open */
+  .badge.unknown, .badge.degraded, .badge.pending, .badge.open {
+    background: #ffaa0015; color: var(--warn);
+  }
+  .badge.unknown::before, .badge.degraded::before,
+  .badge.pending::before, .badge.open::before {
+    background: var(--warn);
+  }
+
+  /* blue — in-progress */
+  .badge.in-progress {
+    background: #0088ff15; color: var(--accent2);
+  }
+  .badge.in-progress::before {
+    background: var(--accent2); box-shadow: 0 0 4px var(--accent2);
+  }
+
+  /* dim — complete/parked */
+  .badge.complete, .badge.parked {
+    background: #ffffff08; color: var(--text-dim);
+  }
+  .badge.complete::before, .badge.parked::before { background: var(--muted); }
+
+  /* ── Staleness indicators ── */
+  .ts { color: var(--text-dim); font-size: 11px; }
+
+  .ts-wrap { display: inline-flex; align-items: center; gap: 5px; }
+
+  .stale-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  .ts-fresh  .stale-dot { background: var(--accent);  box-shadow: 0 0 4px var(--accent); }
+  .ts-warn   .stale-dot { background: var(--warn);    box-shadow: 0 0 4px var(--warn); }
+  .ts-danger .stale-dot { background: var(--danger);  box-shadow: 0 0 4px var(--danger); }
+
+  .ts-fresh .ts { color: var(--text-dim); }
+  .ts-warn  .ts { color: var(--warn); }
+  .ts-danger .ts { color: var(--danger); }
+
+  .stale-label {
+    font-size: 9px; padding: 1px 4px; border-radius: 2px;
+    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+
+  .ts-warn   .stale-label { background: #ffaa0020; color: var(--warn); }
+  .ts-danger .stale-label { background: #ff335520; color: var(--danger); }
+
+  /* ── Deadline formatting ── */
+  .dl-overdue { color: var(--danger); font-size: 11px; font-weight: 600; }
+  .dl-soon    { color: var(--warn);   font-size: 11px; }
+  .dl-ok      { color: var(--text-dim); font-size: 11px; }
+  .dl-none    { color: var(--muted);  font-size: 11px; }
+
+  /* ── Events ── */
+  .event-type {
+    font-size: 10px; padding: 1px 6px; border-radius: 3px;
+    background: #0088ff15; color: var(--accent2);
+    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
+  }
+
+  .payload-cell {
+    color: var(--text-dim); font-size: 11px;
+    max-width: 300px; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ── Empty / loading ── */
+  .empty-row td {
+    text-align: center; color: var(--text-dim);
+    padding: 20px; font-size: 11px; letter-spacing: 0.05em;
+  }
+
+  #refresh-ts { font-size: 10px; color: var(--text-dim); }
+
+  .blink { animation: blink 0.6s ease-in-out; }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">DAEMON <span>// RIM Operations Center</span></div>
+  <div class="header-meta">
+    <div class="db-status">
+      <div class="dot" id="db-dot"></div>
+      <span id="db-label">connecting...</span>
+    </div>
+    <div id="refresh-ts">—</div>
+  </div>
+</header>
+
+<!-- ── IWM Summary ── -->
+<div class="summary-bar">
+  <div class="summary-tile">
+    <div class="label">Nodes</div>
+    <div class="value" id="s-nodes-total">—</div>
+    <div class="sub" id="s-nodes-online">— online</div>
+  </div>
+  <div class="summary-tile">
+    <div class="label">Services</div>
+    <div class="value" id="s-svc-total">—</div>
+    <div class="sub" id="s-svc-running">— running</div>
+  </div>
+  <div class="summary-tile">
+    <div class="label">Events (24h)</div>
+    <div class="value" id="s-events">—</div>
+    <div class="sub">iwm_events</div>
+  </div>
+</div>
+
+<!-- ── IWM Grid ── -->
+<div class="grid">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Nodes</span>
+      <span class="panel-count" id="nodes-count">—</span>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr>
+          <th>Hostname</th><th>IP</th><th>Zone</th>
+          <th>Role</th><th>Status</th><th>Last Seen</th>
+        </tr></thead>
+        <tbody id="nodes-tbody">
+          <tr class="empty-row"><td colspan="6">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Services</span>
+      <span class="panel-count" id="svc-count">—</span>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr>
+          <th>Service</th><th>Node</th><th>Port</th>
+          <th>Status</th><th>Last Checked</th>
+        </tr></thead>
+        <tbody id="svc-tbody">
+          <tr class="empty-row"><td colspan="5">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel full-width">
+    <div class="panel-header">
+      <span class="panel-title">Recent Events</span>
+      <span class="panel-count" id="events-count">—</span>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr>
+          <th>Timestamp</th><th>Node</th><th>Service</th>
+          <th>Type</th><th>Payload</th>
+        </tr></thead>
+        <tbody id="events-tbody">
+          <tr class="empty-row"><td colspan="5">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── PWM Section ── -->
+<div class="section-divider">
+  <span class="section-label">PWM</span>
+  <span class="section-sub">Personal World Model</span>
+  <span class="section-rule"></span>
+</div>
+
+<!-- ── PWM Summary ── -->
+<div class="summary-bar">
+  <div class="summary-tile">
+    <div class="label">Main Quests</div>
+    <div class="value" id="pwm-s-quests">—</div>
+    <div class="sub" id="pwm-s-quests-sub">— active</div>
+  </div>
+  <div class="summary-tile">
+    <div class="label">Obligations</div>
+    <div class="value" id="pwm-s-obs">—</div>
+    <div class="sub" id="pwm-s-obs-sub">— open</div>
+  </div>
+  <div class="summary-tile">
+    <div class="label">Milestones</div>
+    <div class="value" id="pwm-s-miles">—</div>
+    <div class="sub" id="pwm-s-miles-sub">— achieved</div>
+  </div>
+</div>
+
+<!-- ── PWM Grid ── -->
+<div class="grid">
+  <!-- Main Quests — full width -->
+  <div class="panel full-width">
+    <div class="panel-header">
+      <span class="panel-title">Main Quests</span>
+      <span class="panel-count" id="quests-count">—</span>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr>
+          <th>Domain</th><th>Title</th><th>Status</th>
+          <th>Next Action / Blocker</th><th>Due</th><th>XP</th>
+        </tr></thead>
+        <tbody id="quests-tbody">
+          <tr class="empty-row"><td colspan="6">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Obligations -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Obligations</span>
+      <span class="panel-count" id="obs-count">—</span>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr>
+          <th>Domain</th><th>Title</th><th>Counterparty</th>
+          <th>Status</th><th>Deadline</th>
+        </tr></thead>
+        <tbody id="obs-tbody">
+          <tr class="empty-row"><td colspan="5">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Milestones -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Milestones</span>
+      <span class="panel-count" id="miles-count">—</span>
+    </div>
+    <div class="panel-body">
+      <table>
+        <thead><tr>
+          <th>Domain</th><th>Title</th><th>Status</th>
+          <th>Target / Achieved</th><th>XP</th>
+        </tr></thead>
+        <tbody id="miles-tbody">
+          <tr class="empty-row"><td colspan="5">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const REFRESH_MS      = 30000;
+const STALE_WARN_MS   = 10 * 60 * 1000;
+const STALE_DANGER_MS = 30 * 60 * 1000;
+
+function statusBadge(s) {
+  const cls = (s || 'unknown').toLowerCase().replace(/[\s_]+/g, '-');
+  return `<span class="badge ${cls}">${s || 'unknown'}</span>`;
+}
+
+function staleClass(ts) {
+  if (!ts) return 'ts-danger';
+  const age = Date.now() - new Date(ts).getTime();
+  if (age > STALE_DANGER_MS) return 'ts-danger';
+  if (age > STALE_WARN_MS)   return 'ts-warn';
+  return 'ts-fresh';
+}
+
+function staleAge(ts) {
+  if (!ts) return 'never';
+  const age = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
+  if (age < 60)   return `${age}s ago`;
+  if (age < 3600) return `${Math.floor(age/60)}m ago`;
+  return `${Math.floor(age/3600)}h ago`;
+}
+
+function fmtTsStale(ts) {
+  if (!ts) {
+    return `<span class="ts-wrap ts-danger">
+      <span class="stale-dot"></span><span class="ts">—</span>
+      <span class="stale-label">no data</span></span>`;
+  }
+  const d = new Date(ts);
+  const formatted = d.toLocaleString('en-US', {
+    month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
+  });
+  const cls = staleClass(ts);
+  const label = cls === 'ts-fresh' ? '' :
+    `<span class="stale-label">${staleAge(ts)}</span>`;
+  return `<span class="ts-wrap ${cls}" title="${d.toISOString()}">
+    <span class="stale-dot"></span><span class="ts">${formatted}</span>${label}</span>`;
+}
+
+function fmtTs(ts) {
+  if (!ts) return '<span class="ts">—</span>';
+  const d = new Date(ts);
+  return `<span class="ts">${d.toLocaleString('en-US', {
+    month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
+  })}</span>`;
+}
+
+function fmtPayload(p) {
+  if (!p) return '<span class="payload-cell">—</span>';
+  const s = typeof p === 'string' ? p : JSON.stringify(p);
+  return `<span class="payload-cell" title="${s.replace(/"/g,'&quot;')}">${s}</span>`;
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '<span class="dl-none">—</span>';
+  const d = new Date(dateStr);
+  const diffDays = Math.ceil((d - Date.now()) / 86400000);
+  const fmt = d.toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'2-digit' });
+  if (diffDays < 0)  return `<span class="dl-overdue">${fmt} OVERDUE</span>`;
+  if (diffDays <= 7) return `<span class="dl-soon">${fmt} (${diffDays}d)</span>`;
+  return `<span class="dl-ok">${fmt}</span>`;
+}
+
+function fmtNextAction(q) {
+  if (q.status === 'BLOCKED' && q.blocker) {
+    const esc = q.blocker.replace(/"/g, '&quot;');
+    return `<span class="blocker-text" title="${esc}">\u2298 ${q.blocker}</span>`;
+  }
+  if (q.next_action) {
+    const esc = q.next_action.replace(/"/g, '&quot;');
+    return `<span class="na-text" title="${esc}">${q.next_action}</span>`;
+  }
+  return '<span class="ts">—</span>';
+}
+
+async function fetchJSON(path) {
+  const r = await fetch(path);
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+
+async function refresh() {
+  // IWM health + summary
+  try {
+    const [, summary] = await Promise.all([
+      fetchJSON('/api/health'),
+      fetchJSON('/api/summary')
+    ]);
+    document.getElementById('db-dot').className = 'dot ok';
+    document.getElementById('db-label').textContent = 'db connected';
+    document.getElementById('s-nodes-total').textContent = summary.nodes.total ?? '—';
+    document.getElementById('s-nodes-online').textContent = `${summary.nodes.online ?? 0} online`;
+    document.getElementById('s-svc-total').textContent = summary.services.total ?? '—';
+    document.getElementById('s-svc-running').textContent = `${summary.services.running ?? 0} running`;
+    document.getElementById('s-events').textContent = summary.events_24h ?? '—';
+  } catch {
+    document.getElementById('db-dot').className = 'dot err';
+    document.getElementById('db-label').textContent = 'db error';
+  }
+
+  // Nodes
+  try {
+    const nodes = await fetchJSON('/api/nodes');
+    document.getElementById('nodes-count').textContent = nodes.length;
+    const tb = document.getElementById('nodes-tbody');
+    tb.innerHTML = nodes.length
+      ? nodes.map(n => `<tr>
+          <td class="hostname">${n.hostname}</td>
+          <td class="ip">${n.ip || '—'}</td>
+          <td><span class="zone-tag">${n.zone_name || '—'}${n.vlan_id ? ` · VLAN ${n.vlan_id}` : ''}</span></td>
+          <td class="role">${n.role || '—'}</td>
+          <td>${statusBadge(n.status)}</td>
+          <td>${fmtTsStale(n.last_seen)}</td>
+        </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="6">no nodes registered</td></tr>';
+  } catch (e) {
+    document.getElementById('nodes-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="6">error: ${e.message}</td></tr>`;
+  }
+
+  // Services
+  try {
+    const svcs = await fetchJSON('/api/services');
+    document.getElementById('svc-count').textContent = svcs.length;
+    const tb = document.getElementById('svc-tbody');
+    tb.innerHTML = svcs.length
+      ? svcs.map(s => `<tr>
+          <td class="hostname">${s.name}</td>
+          <td class="ip">${s.node_hostname || '—'}</td>
+          <td class="ip">${s.port || '—'}</td>
+          <td>${statusBadge(s.status)}</td>
+          <td>${fmtTsStale(s.last_checked)}</td>
+        </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="5">no services registered</td></tr>';
+  } catch (e) {
+    document.getElementById('svc-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
+  }
+
+  // Events
+  try {
+    const events = await fetchJSON('/api/events?limit=20');
+    document.getElementById('events-count').textContent = `last ${events.length}`;
+    const tb = document.getElementById('events-tbody');
+    tb.innerHTML = events.length
+      ? events.map(e => `<tr>
+          <td>${fmtTs(e.created_at)}</td>
+          <td class="ip">${e.node_hostname || '—'}</td>
+          <td class="ip">${e.service_name || '—'}</td>
+          <td><span class="event-type">${e.event_type}</span></td>
+          <td>${fmtPayload(e.payload)}</td>
+        </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="5">no events</td></tr>';
+  } catch (e) {
+    document.getElementById('events-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
+  }
+
+  // PWM summary
+  try {
+    const pwm = await fetchJSON('/api/pwm/summary');
+    const blocked = pwm.main_quests.blocked ?? 0;
+    const overdue = pwm.obligations.overdue ?? 0;
+
+    const qEl = document.getElementById('pwm-s-quests');
+    qEl.textContent = pwm.main_quests.total ?? '—';
+    qEl.className = 'value' + (blocked > 0 ? ' warn' : '');
+    document.getElementById('pwm-s-quests-sub').textContent =
+      `${pwm.main_quests.active ?? 0} active${blocked > 0 ? `, ${blocked} blocked` : ''}`;
+
+    const oEl = document.getElementById('pwm-s-obs');
+    oEl.textContent = pwm.obligations.total ?? '—';
+    oEl.className = 'value' + (overdue > 0 ? ' danger' : '');
+    document.getElementById('pwm-s-obs-sub').textContent =
+      `${pwm.obligations.open ?? 0} open${overdue > 0 ? `, ${overdue} overdue` : ''}`;
+
+    document.getElementById('pwm-s-miles').textContent = pwm.milestones.total ?? '—';
+    document.getElementById('pwm-s-miles-sub').textContent =
+      `${pwm.milestones.achieved ?? 0} achieved`;
+  } catch {
+    // non-fatal — IWM panels still render
+  }
+
+  // PWM Main Quests
+  try {
+    const quests = await fetchJSON('/api/pwm/quests?type=MAIN&limit=50');
+    document.getElementById('quests-count').textContent = quests.length;
+    const tb = document.getElementById('quests-tbody');
+    tb.innerHTML = quests.length
+      ? quests.map(q => `<tr>
+          <td><span class="domain-tag">${q.domain || '—'}</span></td>
+          <td class="hostname ellipsis" title="${q.title}">${q.title}</td>
+          <td>${statusBadge(q.status)}</td>
+          <td class="ellipsis">${fmtNextAction(q)}</td>
+          <td>${fmtDate(q.due_date)}</td>
+          <td><span class="xp-val">${q.xp != null ? q.xp + ' xp' : '—'}</span></td>
+        </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="6">no main quests</td></tr>';
+  } catch (e) {
+    document.getElementById('quests-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="6">error: ${e.message}</td></tr>`;
+  }
+
+  // PWM Obligations
+  try {
+    const obs = await fetchJSON('/api/pwm/obligations?open_only=true&limit=50');
+    document.getElementById('obs-count').textContent = obs.length;
+    const tb = document.getElementById('obs-tbody');
+    tb.innerHTML = obs.length
+      ? obs.map(o => `<tr>
+          <td><span class="domain-tag">${o.domain || '—'}</span></td>
+          <td class="hostname ellipsis" title="${o.title}">${o.title}</td>
+          <td class="ip">${o.counterparty || '—'}</td>
+          <td>${statusBadge(o.status)}</td>
+          <td>${fmtDate(o.deadline)}</td>
+        </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="5">no open obligations</td></tr>';
+  } catch (e) {
+    document.getElementById('obs-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
+  }
+
+  // PWM Milestones
+  try {
+    const miles = await fetchJSON('/api/pwm/milestones?limit=20');
+    document.getElementById('miles-count').textContent = miles.length;
+    const tb = document.getElementById('miles-tbody');
+    tb.innerHTML = miles.length
+      ? miles.map(m => `<tr>
+          <td><span class="domain-tag">${m.domain || '—'}</span></td>
+          <td class="hostname ellipsis" title="${m.title}">${m.title}</td>
+          <td>${statusBadge(m.status)}</td>
+          <td>${fmtDate(m.achieved_at || m.target_date)}</td>
+          <td><span class="xp-val">${m.xp != null ? m.xp + ' xp' : '—'}</span></td>
+        </tr>`).join('')
+      : '<tr class="empty-row"><td colspan="5">no milestones</td></tr>';
+  } catch (e) {
+    document.getElementById('miles-tbody').innerHTML =
+      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
+  }
+
+  const ts = document.getElementById('refresh-ts');
+  ts.textContent = `updated ${new Date().toLocaleTimeString('en-US', {hour12:false})}`;
+  ts.classList.remove('blink');
+  void ts.offsetWidth;
+  ts.classList.add('blink');
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
