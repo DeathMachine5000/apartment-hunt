@@ -4,79 +4,82 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pinellas Apartment Hunt — CRM</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   :root{
     --bg:#0f1115;--card:#181b22;--card2:#1f2530;--line:#2a3140;--text:#e8ecf3;--muted:#96a0b5;
-    --accent:#4f9cff;--today:#22c55e;--call:#f5a623;--toured:#4f9cff;--top:#a855f7;
-    --passed:#5b6472;--parked:#3b424f;--browse:#14b8a6;--booked:#0ea5e9;
-    --g1:#22c55e;--g2:#4f9cff;--g3:#f5a623;--g4:#ef4444;
+    --accent:#4f9cff;--today:#22c55e;--closed:#ef4444;--g1:#22c55e;--g2:#4f9cff;--g3:#f5a623;--g4:#ef4444;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     background:var(--bg);color:var(--text);padding-bottom:50px}
-  header{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.93);backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--line);padding:13px 16px 9px}
-  h1{margin:0;font-size:18px}
+  header{position:sticky;top:0;z-index:500;background:rgba(15,17,21,.94);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:12px 16px 9px}
+  h1{margin:0;font-size:17px;display:inline-block}
   .date{color:var(--muted);font-size:12px;margin-top:2px}
-  .sync{float:right;font-size:11px;color:var(--muted);margin-top:2px}
+  .sync{float:right;font-size:11px;color:var(--muted)}
   .sync.ok{color:var(--today)} .sync.err{color:var(--g4)}
-  .actions{margin:12px 16px 2px;background:linear-gradient(135deg,#182233,#141b26);
-    border:1px solid #2b3a55;border-radius:14px;padding:13px 15px}
+  .maptoggle{float:right;margin-left:10px;font-size:12px;font-weight:600;color:var(--accent);
+    background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:4px 9px;cursor:pointer}
+  .controls{display:flex;gap:8px;margin:10px 16px 2px}
+  .search{position:relative;flex:1}
+  .search input{width:100%;padding:10px 12px 10px 34px;background:var(--card);border:1px solid var(--line);
+    border-radius:11px;color:var(--text);font-size:14px}
+  .search .mag{position:absolute;left:11px;top:10px;color:var(--muted)}
+  select.region{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:11px;
+    padding:0 8px;font-size:13px;max-width:44%}
+  #map{height:300px;margin:12px 16px 0;border-radius:14px;border:1px solid var(--line);display:none}
+  .leaflet-popup-content{margin:10px 12px;font-size:13px}
+  .leaflet-popup-content b{font-size:14px}
+  .pc-hrs{font-weight:600;margin:3px 0} .pc-o{color:#16a34a}.pc-c{color:#dc2626}
+  .pc-btn{display:inline-block;margin-top:6px;margin-right:6px;padding:5px 10px;border-radius:7px;
+    background:#22c55e;color:#04210f;text-decoration:none;font-weight:700;font-size:12px}
+  .pc-btn.grey{background:#e5e7eb;color:#111}
+  .actions{margin:12px 16px 2px;background:linear-gradient(135deg,#182233,#141b26);border:1px solid #2b3a55;border-radius:14px;padding:13px 15px}
   .actions h2{margin:0 0 7px;font-size:11.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--accent)}
   .act{display:flex;gap:9px;font-size:14px;margin:6px 0;line-height:1.35}
-  .num{flex:0 0 19px;height:19px;border-radius:50%;background:var(--accent);color:#001a3a;
-    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .num{flex:0 0 19px;height:19px;border-radius:50%;background:var(--accent);color:#001a3a;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .act a{color:var(--today);text-decoration:none;font-weight:600;white-space:nowrap}
   .lead{margin:12px 16px 2px}
-  .lead h2{font-size:11.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--top);margin:0 0 8px}
-  .lrow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
-    border-radius:10px;padding:9px 12px;margin-bottom:7px}
-  .lrow .r{font-weight:700;color:var(--muted);width:18px}
-  .lrow .fs{margin-left:auto;font-weight:800;font-size:16px}
+  .lead h2{font-size:11.5px;text-transform:uppercase;letter-spacing:1.3px;color:#a855f7;margin:0 0 8px}
+  .lrow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:7px}
+  .lrow .r{font-weight:700;color:var(--muted);width:18px}.lrow .fs{margin-left:auto;font-weight:800;font-size:16px}
   .chips{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 4px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
-  .chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--muted);
-    padding:7px 13px;border-radius:999px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--muted);padding:7px 13px;border-radius:999px;font-size:13px;cursor:pointer;white-space:nowrap}
   .chip.on{background:var(--accent);border-color:var(--accent);color:#04213f;font-weight:600}
-  .wrap{padding:6px 16px}
+  .count{color:var(--muted);font-size:11.5px;margin:8px 16px 0}
+  .wrap{padding:2px 16px}
   .group{margin-top:16px}
-  .group h3{font-size:11.5px;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);
-    margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;position:relative}
-  .card.today{border-color:var(--today);box-shadow:0 0 0 1px rgba(34,197,94,.3)}
+  .group h3{font-size:12px;letter-spacing:.6px;text-transform:uppercase;margin:0 0 10px;padding:6px 0 6px 10px;border-left:4px solid var(--accent);color:var(--text)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;scroll-margin-top:90px}
+  .card.open{border-color:var(--today);box-shadow:0 0 0 1px rgba(34,197,94,.3)}
+  .card.flash{animation:fl 1.4s ease}@keyframes fl{0%{box-shadow:0 0 0 2px var(--accent)}100%{box-shadow:none}}
   .row1{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
   .name{font-size:16px;font-weight:650;margin:0}
   .area{color:var(--muted);font-size:12px;margin-top:3px}
   .fit{flex:0 0 auto;text-align:center;min-width:52px}
-  .fit .n{font-size:22px;font-weight:800;line-height:1}
-  .fit .l{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
-  .meta{display:flex;flex-wrap:wrap;gap:5px 13px;margin:9px 0 4px;font-size:12px;color:var(--muted)}
+  .fit .n{font-size:22px;font-weight:800;line-height:1}.fit .l{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .hrs{margin:9px 0 2px;font-size:12.5px;font-weight:600}
+  .hrs.o{color:var(--today)}.hrs.c{color:var(--closed)}.hrs.u{color:var(--muted)}
+  .week{font-size:11px;color:var(--muted);margin-top:2px}
+  .meta{display:flex;flex-wrap:wrap;gap:5px 13px;margin:8px 0 4px;font-size:12px;color:var(--muted)}
   .meta b{color:var(--text)}
-  select.status{background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:8px;
-    padding:6px 8px;font-size:12.5px;font-weight:600;margin-top:8px}
+  select.status{background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:12.5px;font-weight:600;margin-top:8px}
   .scores{margin-top:11px;display:grid;gap:8px}
   .srow{display:flex;align-items:center;gap:8px}
-  .slab{flex:0 0 108px;font-size:12px}
-  .slab small{display:block;color:var(--muted);font-size:10px;line-height:1.15}
+  .slab{flex:0 0 108px;font-size:12px}.slab small{display:block;color:var(--muted);font-size:10px;line-height:1.15}
   .pips{display:flex;gap:5px}
-  .pip{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--card2);
-    color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .pip{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
   .pip.on{background:var(--accent);border-color:var(--accent);color:#04213f;font-weight:700}
-  textarea.notes{width:100%;margin-top:10px;background:var(--card2);color:var(--text);border:1px solid var(--line);
-    border-radius:9px;padding:9px;font-size:12.5px;font-family:inherit;resize:vertical;min-height:44px}
+  textarea.notes{width:100%;margin-top:10px;background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px;font-size:12.5px;font-family:inherit;resize:vertical;min-height:44px}
   .btns{display:flex;gap:8px;margin-top:11px}
-  .btn{flex:1;text-align:center;text-decoration:none;font-size:13px;font-weight:600;padding:10px 6px;
-    border-radius:10px;border:1px solid var(--line);color:var(--text);background:var(--card2)}
-  .btn.call{background:var(--today);color:#04210f;border-color:var(--today)}
-  .btn.call.off{background:var(--card2);color:var(--muted)}
-  .badge{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 8px;border-radius:7px;color:#04121f}
-  .b-today{background:var(--today)}.b-call{background:var(--call)}.b-booked{background:var(--booked)}
-  .b-toured{background:var(--toured)}.b-top{background:var(--top);color:#fff}
-  .b-passed{background:var(--passed);color:#d7dce6}.b-parked{background:var(--parked);color:#aeb6c4}.b-browse{background:var(--browse)}
-  /* setup */
+  .btn{flex:1;text-align:center;text-decoration:none;font-size:13px;font-weight:600;padding:10px 6px;border-radius:10px;border:1px solid var(--line);color:var(--text);background:var(--card2)}
+  .btn.call{background:var(--today);color:#04210f;border-color:var(--today)}.btn.call.off{background:var(--card2);color:var(--muted)}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 8px;border-radius:7px}
   .setup{max-width:520px;margin:60px auto;padding:24px;background:var(--card);border:1px solid var(--line);border-radius:16px}
-  .setup h2{margin:0 0 6px} .setup p{color:var(--muted);font-size:13.5px;line-height:1.5}
-  .setup input{width:100%;padding:12px;margin:12px 0;background:var(--bg);border:1px solid var(--line);
-    border-radius:10px;color:var(--text);font-size:14px}
+  .setup h2{margin:0 0 6px}.setup p{color:var(--muted);font-size:13.5px;line-height:1.5}
+  .setup input{width:100%;padding:12px;margin:12px 0;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--text);font-size:14px}
   .setup button{width:100%;padding:13px;background:var(--accent);color:#04213f;border:0;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer}
   .foot{margin:22px 16px 0;padding:14px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);font-size:12px;line-height:1.5}
   .hide{display:none!important}
@@ -87,7 +90,7 @@
 
 <div id="setup" class="setup hide">
   <h2>🔌 Connect the backend</h2>
-  <p>Paste the <b>Web App URL</b> from your Apps Script deployment (see <b>Code.gs</b> for the 3-click setup). You only do this once per device; both phones use the same URL.</p>
+  <p>Paste the <b>Web App URL</b> from Apps Script (see <b>Code.gs</b>). Once per device; both phones use the same URL.</p>
   <input id="urlInput" placeholder="https://script.google.com/macros/s/…/exec">
   <button onclick="saveUrl()">Connect</button>
 </div>
@@ -95,186 +98,204 @@
 <div id="app" class="hide">
   <header>
     <span class="sync" id="sync">…</span>
+    <span class="maptoggle" id="maptoggle" onclick="toggleMap()">🗺 Map</span>
     <h1>🏝️ Pinellas Hunt — CRM</h1>
     <div class="date" id="date"></div>
   </header>
 
-  <div class="actions">
-    <h2>▶ Do next</h2>
-    <div class="act"><span class="num">1</span><div><b>Call VIV</b> → tour today (12–5). <a href="tel:+18449332213" style="color:#22c55e">844-933-2213</a></div></div>
-    <div class="act"><span class="num">2</span><div><b>Call Arya</b> → tour today (12–5). <a href="tel:+17275948301" style="color:#22c55e">727-594-8301</a></div></div>
-    <div class="act"><span class="num">3</span><div><b>Walk Gulfport</b> — seeing it in person is the tour.</div></div>
-    <div class="act"><span class="num">★</span><div><b>Score every place you visit</b> — the Fit Score does the ranking for you.</div></div>
+  <div id="map"></div>
+
+  <div class="controls">
+    <div class="search"><span class="mag">🔍</span><input id="search" placeholder="Search property or note…" autocomplete="off"></div>
+    <select class="region" id="regionSel" onchange="onRegion()"><option value="">All regions</option></select>
   </div>
 
+  <div class="actions" id="actions"></div>
   <div class="lead hide" id="lead"><h2>🏆 Top fit so far</h2><div id="leadRows"></div></div>
 
   <div class="chips" id="chips"></div>
+  <div class="count" id="count"></div>
   <div class="wrap" id="list"></div>
 
   <div class="foot">
-    <b>Fit Score</b> is weighted for you two: Quiet 25% · Calm crowd (not frat) 25% · Neighborhood 25% · Nearby 15% · Property 10%.
-    Party-ish stuff doesn't lift it. Edits save to the shared Sheet instantly — you both see the same data.
+    <b>Open today</b> is computed live from each office's real hours (pulled from their own websites) — it self-updates daily.
+    <b>Fit Score</b>: Quiet 25% · Calm crowd/not-frat 25% · Neighborhood 25% · Nearby 15% · Property 10%.
+    Edits save to the shared Sheet instantly.
     <a class="reset" href="#" onclick="clearUrl();return false">Reconnect / change backend URL</a>
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const LS_KEY="aptcrm_api_url";
-let API = localStorage.getItem(LS_KEY) || "";
-let ROWS=[], ORDER=[], active="all";
+let API=localStorage.getItem(LS_KEY)||"";
+let ROWS=[], active="all", regionFilter="", q="";
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], TODAY=new Date().getDay();
 
-const STATUS=[
- {k:"today",label:"Open Today"},{k:"call",label:"To Call"},{k:"booked",label:"Tour Booked"},
- {k:"toured",label:"Toured"},{k:"top",label:"TOP PICK"},{k:"passed",label:"Passed"},
- {k:"parked",label:"Parked"},{k:"browse",label:"Browse"}
+const REGION_ORDER=["Downtown St. Pete","North St. Pete","Southwest St. Pete","Southeast St. Pete","North of Tampa","Clearwater","Tampa","Peninsula / Near Base"];
+const REGION_COLOR={"Downtown St. Pete":"#4f9cff","North St. Pete":"#a855f7","Southwest St. Pete":"#14b8a6","Southeast St. Pete":"#f5a623","North of Tampa":"#ef4444","Clearwater":"#22d3ee","Tampa":"#f472b6","Peninsula / Near Base":"#94a3b8"};
+
+/* Static data baked in. Hours pulled from each property's own website (July 2026).
+   h.d = [Sun..Sat] open-time strings, ""=closed. h.unknown=confirm by phone. */
+const BAKED=[
+ {id:"p01",name:"VIV",region:"Downtown St. Pete",area:"1000 1st Ave N · EDGE",site:"liveatviv.com",phone:"7273141230",lat:27.7715,lng:-82.6432,h:{d:["12–5","9–6","9–6","9–6","9–6","9–5","10–5"],week:"Su 12–5 · M–Th 9–6 · F 9–5 · Sa 10–5"}},
+ {id:"p02",name:"Sole on Central",region:"Downtown St. Pete",area:"1560 Central Ave · Grand Central",site:"soleoncentral.com",phone:"8445173740",lat:27.7706,lng:-82.6539,h:{d:["","9–6","9–6","9–6","9–6","9–6","10–5"],week:"Su closed · M–F 9–6 · Sa 10–5"}},
+ {id:"p03",name:"Modera",region:"Downtown St. Pete",area:"201 17th St S · Warehouse Arts",site:"moderastpetersburg.com",phone:"7272205202",lat:27.7686,lng:-82.6560,h:{d:["12–5","10–6","10–6","10–6","10–6","10–6","10–5"],week:"Su 12–5 · M–F 10–6 · Sa 10–5"}},
+ {id:"p04",name:"930 Central Flats",region:"Downtown St. Pete",area:"930 Central Ave · EDGE",site:"live930.com",phone:"8334630041",lat:27.7710,lng:-82.6480,h:{d:["1–5","9–6","9–6","9–6","9–6","9–6","10–5"],week:"Su 1–5 · M–F 9–6 · Sa 10–5"}},
+ {id:"p05",name:"Vantage St. Pete",region:"Downtown St. Pete",area:"160 16th St N · EDGE",site:"vantagestpete.com",phone:"8507801432",lat:27.7745,lng:-82.6540,h:{d:["","10–5","9–6","9–6","9–6","9–6","10–4:30"],week:"Su closed · M 10–5 · Tu–F 9–6 · Sa 10–4:30"}},
+ {id:"p06",name:"Magnolia Carillon",region:"North St. Pete",area:"500 Trinity Ln N · Carillon",site:"magnoliacarillon.com",phone:"7275735292",lat:27.8890,lng:-82.6560,h:{d:["","10–6","10–6","10–6","10–6","10–6","10–5"],week:"Su closed · M–F 10–6 · Sa 10–5"}},
+ {id:"p07",name:"Park & Main",region:"North St. Pete",area:"221 Main St N · Carillon",site:"liveparkandmain.com",phone:"4152311701",lat:27.8905,lng:-82.6540,h:{d:["12–5","9–6","9–6","9–6","9–6","9–6","10–5"],week:"Su 12–5 · M–F 9–6 · Sa 10–5"}},
+ {id:"p08",name:"Clearview",region:"North St. Pete",area:"101 Main St N · Carillon",site:"clearviewstpete.com",phone:"7276107938",lat:27.8900,lng:-82.6545,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p09",name:"Arya",region:"North St. Pete",area:"375 54th Ave N",site:"aryastpete.com",phone:"7275948301",lat:27.8216,lng:-82.6370,h:{d:["12–5","9–6","9–6","9–6","9–6","9–6","10–5"],week:"Su 12–5 · M–F 9–6 · Sa 10–5"}},
+ {id:"p10",name:"Cortland Satori",region:"North St. Pete",area:"St. Pete · Gateway",site:"cortland.com/apartments/cortland-satori",phone:"",lat:27.8650,lng:-82.6700,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p11",name:"Villas at Gateway",region:"North St. Pete",area:"2901 Gandy Blvd · Pinellas Park",site:"villasatgateway.com",phone:"7273353106",lat:27.8740,lng:-82.6900,h:{d:["","9–6","9–6","9–6","9–6","9–6","10–5"],week:"Su closed · M–F 9–6 · Sa 10–5"}},
+ {id:"p12",name:"Marina Club Apartment Homes",region:"Southwest St. Pete",area:"4341 34th St S",site:"marinaclubapts.com",phone:"8559222682",lat:27.7360,lng:-82.6720,h:{d:["1–5","9–5","9–5","9–5","9–5","9–5","10–5"],week:"Su 1–5 · M–F 9–5 · Sa 10–5"}},
+ {id:"p13",name:"Lake Maggiore",region:"Southeast St. Pete",area:"825 32nd Ave S",site:"lakemaggioreapartments.com",phone:"7273415156",lat:27.7500,lng:-82.6470,h:{d:["1–5","9–6","9–6","9–6","9–7","9–6","10–5"],week:"Su 1–5 · M–W 9–6 · Th 9–7 · F 9–6 · Sa 10–5"}},
+ {id:"p14",name:"The Artisan",region:"North of Tampa",area:"966 Douglas Ave · Dunedin",site:"artisandunedin.com",phone:"7273494467",lat:28.0300,lng:-82.7830,h:{d:["","9–5","9–5","9–5","9–5","9–5",""],week:"Su & Sa closed · M–F 9–5"}},
+ {id:"p15",name:"Silversaw",region:"North of Tampa",area:"Lutz · 33559",site:"silversawapts.com",phone:"",lat:28.1500,lng:-82.4300,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p16",name:"Livano",region:"North of Tampa",area:"Lutz · Sun Lake",site:"livanosunlake.com",phone:"",lat:28.1900,lng:-82.5100,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p17",name:"Azora Cypress Ranch",region:"North of Tampa",area:"Lutz · 33558",site:"azoracypressranch.com",phone:"",lat:28.1850,lng:-82.5150,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p18",name:"Canopy",region:"North of Tampa",area:"Citrus Park · 33625",site:"canopyatcitruspark.com",phone:"",lat:28.0760,lng:-82.5680,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p19",name:"Cortland Bayport",region:"North of Tampa",area:"10510 Parker's Landing Dr · Tampa",site:"cortland.com/apartments/cortland-bayport",phone:"8135927149",lat:27.9850,lng:-82.5900,h:{d:["","","10–6","10–6","10–6","10–6","10–5"],week:"Su & Mon closed · Tu–F 10–6 · Sa 10–5"}},
+ {id:"p20",name:"Lantower Bayside",region:"Clearwater",area:"16485 US Hwy 19 N · Clearwater",site:"lantowerbayside.com",phone:"7272175114",lat:27.9080,lng:-82.7290,h:{unknown:true,week:"New — by appt, call to confirm"}},
+ {id:"p21",name:"Channel Club",region:"Tampa",area:"1115 E Twiggs St · Tampa",site:"channelclubapartments.com",phone:"8135355336",lat:27.9480,lng:-82.4490,h:{d:["","9–6","9–6","9–6","9–6","9–6","10–5"],week:"Su closed · M–F 9–6 · Sa 10–5"}},
+ {id:"p22",name:"Novel",region:"Peninsula / Near Base",area:"Beach Park · 33609",site:"novelbeachpark.com",phone:"",lat:27.9430,lng:-82.5170,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p23",name:"Broadstone Marina Bay",region:"Peninsula / Near Base",area:"Westshore Marina · S. Tampa",site:"broadstonemarinabay.com",phone:"",lat:27.8720,lng:-82.5330,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p24",name:"Advenir at The Watson",region:"Peninsula / Near Base",area:"Tampa · 33616",site:"advenirliving.com",phone:"",lat:27.8760,lng:-82.5240,h:{unknown:true,week:"Call to confirm"}},
+ {id:"p25",name:"MMA Breakwater",region:"Peninsula / Near Base",area:"S. Tampa · details TBD",site:"",phone:"",lat:null,lng:null,h:{unknown:true,week:"No details yet"}}
 ];
+const BID=Object.fromEntries(BAKED.map(b=>[b.id,b]));
+
+const STATUS=[{k:"call",label:"To Call"},{k:"booked",label:"Tour Booked"},{k:"toured",label:"Toured"},{k:"top",label:"TOP PICK"},{k:"passed",label:"Passed"},{k:"parked",label:"Parked"}];
 const SLABEL=Object.fromEntries(STATUS.map(s=>[s.k,s.label]));
-const SCORES=[
- {k:"s_quiet",label:"Quiet",w:.25,hint:"soundproof / noise"},
- {k:"s_maturity",label:"Calm crowd",w:.25,hint:"mature, NOT frat"},
- {k:"s_hood",label:"Neighborhood",w:.25,hint:"art / food / walk"},
- {k:"s_amen",label:"Nearby",w:.15,hint:"amenities around"},
- {k:"s_prop",label:"Property",w:.10,hint:"building feel"}
-];
-const FILTERS=[["all","All"],["today","Open Today"],["call","To Call"],["booked","Booked"],
- ["toured","Toured"],["top","Top Pick"],["ranked","Ranked ▾"],["parked","Parked"]];
+const SCORES=[{k:"s_quiet",label:"Quiet",w:.25,hint:"soundproof / noise"},{k:"s_maturity",label:"Calm crowd",w:.25,hint:"mature, NOT frat"},{k:"s_hood",label:"Neighborhood",w:.25,hint:"art / food / walk"},{k:"s_amen",label:"Nearby",w:.15,hint:"amenities around"},{k:"s_prop",label:"Property",w:.10,hint:"building feel"}];
+const FILTERS=[["all","All"],["opentoday","Open Today"],["call","To Call"],["booked","Booked"],["toured","Toured"],["top","Top Pick"],["ranked","Ranked ▾"],["parked","Parked"]];
 
-function fitOf(row){
-  let ws=0,acc=0;
-  SCORES.forEach(s=>{const v=parseFloat(row[s.k]); if(v>=1){acc+=v*s.w;ws+=s.w;}});
-  if(ws===0) return null;
-  return Math.round((acc/ws)*20);
-}
+function open_(x){const h=BID[x.id].h;if(h.unknown||!h.d)return false;return !!h.d[TODAY];}
+function fitOf(x){let ws=0,acc=0;SCORES.forEach(s=>{const v=parseFloat(x[s.k]);if(v>=1){acc+=v*s.w;ws+=s.w;}});return ws===0?null:Math.round((acc/ws)*20);}
 function fitColor(f){return f>=80?"var(--g1)":f>=60?"var(--g2)":f>=40?"var(--g3)":"var(--g4)";}
 function fmtPhone(p){p=String(p||"").replace(/\D/g,"");return p.length===10?`(${p.slice(0,3)}) ${p.slice(3,6)}-${p.slice(6)}`:"";}
 
-/* ---------- boot ---------- */
-if(!API){ show("setup"); } else { show("app"); boot(); }
-function show(id){document.getElementById("setup").classList.toggle("hide",id!=="setup");
-  document.getElementById("app").classList.toggle("hide",id!=="app");}
-function saveUrl(){const v=document.getElementById("urlInput").value.trim();
-  if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(v)){alert("That doesn't look like a Web App /exec URL.");return;}
-  localStorage.setItem(LS_KEY,v);API=v;show("app");boot();}
+/* boot */
+if(!API)show("setup");else{show("app");boot();}
+function show(id){document.getElementById("setup").classList.toggle("hide",id!=="setup");document.getElementById("app").classList.toggle("hide",id!=="app");}
+function saveUrl(){const v=document.getElementById("urlInput").value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(v)){alert("That doesn't look like a Web App /exec URL.");return;}localStorage.setItem(LS_KEY,v);API=v;show("app");boot();}
 function clearUrl(){localStorage.removeItem(LS_KEY);location.reload();}
 
 function boot(){
-  document.getElementById("date").textContent=
-    new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})+"  ·  green = open today";
-  buildChips(); load();
+  document.getElementById("date").textContent=new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})+"  ·  green = open today";
+  const rs=document.getElementById("regionSel");
+  REGION_ORDER.forEach(r=>{const o=document.createElement("option");o.value=r;o.textContent=r;rs.appendChild(o);});
+  document.getElementById("search").addEventListener("input",e=>{q=e.target.value.trim().toLowerCase();render();});
+  buildChips();load();
 }
-function setSync(t,cls){const e=document.getElementById("sync");e.textContent=t;e.className="sync "+(cls||"");}
+function setSync(t,c){const e=document.getElementById("sync");e.textContent=t;e.className="sync "+(c||"");}
+function onRegion(){regionFilter=document.getElementById("regionSel").value;render();}
 
-function load(){
-  setSync("syncing…");
+function load(){setSync("syncing…");
   fetch(API).then(r=>r.json()).then(d=>{
-    if(!d.ok) throw new Error(d.error||"bad response");
-    ROWS=d.rows;
-    if(!ORDER.length) ORDER=[...new Set(ROWS.map(r=>r.group))];
-    setSync("✓ synced","ok"); render();
-  }).catch(e=>{ setSync("✗ offline","err");
-    if(!ROWS.length) document.getElementById("list").innerHTML=
-      `<p style="color:var(--muted);text-align:center;margin-top:30px">Couldn't reach the backend.<br>Check the Web App URL — <a href="#" onclick="clearUrl();return false" style="color:var(--accent)">reconnect</a>.</p>`;
+    if(!d.ok)throw new Error(d.error||"bad");
+    const by={};(d.rows||[]).forEach(r=>by[r.id]=r);
+    ROWS=BAKED.map(b=>Object.assign({status:"call"},by[b.id]||{},{id:b.id,name:b.name,region:b.region}));
+    setSync("✓ synced","ok");renderActions();render();
+  }).catch(()=>{setSync("✗ offline","err");
+    if(!ROWS.length){ROWS=BAKED.map(b=>Object.assign({status:"call"},{id:b.id,name:b.name,region:b.region}));renderActions();render();}
   });
 }
+function patch(id,field,value){const row=ROWS.find(r=>r.id===id);if(row)row[field]=value;render();setSync("saving…");
+  fetch(API,{method:"POST",body:JSON.stringify({id,updates:{[field]:value}})}).then(r=>r.json()).then(d=>setSync(d.ok?"✓ saved":"✗ error",d.ok?"ok":"err")).catch(()=>setSync("✗ save failed","err"));}
 
-function patch(id,field,value){
-  const row=ROWS.find(r=>r.id===id); if(row) row[field]=value;   // optimistic
-  render();
-  setSync("saving…");
-  fetch(API,{method:"POST",body:JSON.stringify({id,updates:{[field]:value}})})
-    .then(r=>r.json()).then(d=>setSync(d.ok?"✓ saved":"✗ error",d.ok?"ok":"err"))
-    .catch(()=>setSync("✗ save failed","err"));
+function renderActions(){
+  const open=ROWS.filter(open_);
+  let h=`<h2>▶ Do next · ${DOW[TODAY]}</h2>`;
+  if(open.length){h+=`<div class="act"><span class="num">✓</span><div><b>Open for tours today (${open.length}):</b></div></div>`;
+    open.forEach(r=>{const p=String(BID[r.id].phone||"").replace(/\D/g,"");h+=`<div class="act"><span class="num">·</span><div>${r.name} — ${BID[r.id].h.d[TODAY]}${p.length===10?` · <a href="tel:+1${p}">${fmtPhone(p)}</a>`:""}</div></div>`;});
+  }else h+=`<div class="act"><span class="num">!</span><div>No offices open today — good day to walk neighborhoods.</div></div>`;
+  h+=`<div class="act"><span class="num">★</span><div><b>Score each place you visit</b> — Fit ranks them for you.</div></div>`;
+  document.getElementById("actions").innerHTML=h;
 }
 
-/* ---------- chips ---------- */
-function buildChips(){
-  const c=document.getElementById("chips");c.innerHTML="";
-  FILTERS.forEach(([k,label])=>{
-    const el=document.createElement("div");
-    el.className="chip"+(k===active?" on":"");el.textContent=label;
-    el.onclick=()=>{active=k;[...c.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");render();};
-    c.appendChild(el);
-  });
-}
+function buildChips(){const c=document.getElementById("chips");c.innerHTML="";
+  FILTERS.forEach(([k,label])=>{const el=document.createElement("div");el.className="chip"+(k===active?" on":"");el.textContent=label;
+    el.onclick=()=>{active=k;[...c.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");render();};c.appendChild(el);});}
 
-/* ---------- render ---------- */
+function matchQ(r){if(!q)return true;return [r.name,BID[r.id].area,r.region,r.notes].join(" ").toLowerCase().includes(q);}
+function passFilter(r){
+  if(regionFilter&&r.region!==regionFilter)return false;
+  if(active==="opentoday")return open_(r);
+  if(active==="ranked"||active==="all")return true;
+  return r.status===active;
+}
+function visible(){return ROWS.filter(r=>passFilter(r)&&matchQ(r));}
+
 function render(){
-  // leaderboard
   const scored=ROWS.map(r=>({r,f:fitOf(r)})).filter(x=>x.f!=null).sort((a,b)=>b.f-a.f);
   const lead=document.getElementById("lead"),lr=document.getElementById("leadRows");
-  if(scored.length){lead.classList.remove("hide");lr.innerHTML="";
+  if(scored.length&&!q&&!regionFilter){lead.classList.remove("hide");lr.innerHTML="";
     scored.slice(0,3).forEach((x,i)=>{const d=document.createElement("div");d.className="lrow";
-      d.innerHTML=`<span class="r">${i+1}</span><div><div style="font-weight:600">${x.r.name}</div>
-        <div style="font-size:11px;color:var(--muted)">${x.r.area}</div></div>
-        <span class="fs" style="color:${fitColor(x.f)}">${x.f}</span>`;lr.appendChild(d);});
-  } else lead.classList.add("hide");
+      d.innerHTML=`<span class="r">${i+1}</span><div><div style="font-weight:600">${x.r.name}</div><div style="font-size:11px;color:var(--muted)">${BID[x.r.id].area}</div></div><span class="fs" style="color:${fitColor(x.f)}">${x.f}</span>`;lr.appendChild(d);});
+  }else lead.classList.add("hide");
 
   const list=document.getElementById("list");list.innerHTML="";
+  const items=visible();
+  document.getElementById("count").textContent=`${items.length} of ${ROWS.length} shown`+(regionFilter?` · ${regionFilter}`:"")+(q?` · “${q}”`:"");
 
-  if(active==="ranked"){
-    const sec=document.createElement("div");sec.className="group";
-    sec.innerHTML="<h3>Ranked by Fit Score</h3>";
-    ROWS.map(r=>({r,f:fitOf(r)})).sort((a,b)=>(b.f??-1)-(a.f??-1)).forEach(x=>sec.appendChild(card(x.r)));
-    list.appendChild(sec);return;
-  }
-
-  const items=ROWS.filter(r=>active==="all"||r.status===active);
-  ORDER.filter(g=>items.some(r=>r.group===g)).forEach(g=>{
-    const sec=document.createElement("div");sec.className="group";
-    sec.innerHTML=`<h3>${g}</h3>`;
-    items.filter(r=>r.group===g).forEach(r=>sec.appendChild(card(r)));
-    list.appendChild(sec);
-  });
-  if(!items.length) list.innerHTML=`<p style="color:var(--muted);text-align:center;margin-top:30px">Nothing in this filter.</p>`;
+  if(active==="ranked"){const sec=document.createElement("div");sec.className="group";sec.innerHTML="<h3 style='border-color:#a855f7'>Ranked by Fit Score</h3>";
+    items.map(r=>({r,f:fitOf(r)})).sort((a,b)=>(b.f??-1)-(a.f??-1)).forEach(x=>sec.appendChild(card(x.r)));list.appendChild(sec);}
+  else{REGION_ORDER.filter(g=>items.some(r=>r.region===g)).forEach(g=>{const sec=document.createElement("div");sec.className="group";
+    sec.innerHTML=`<h3 style="border-color:${REGION_COLOR[g]}">${g}</h3>`;items.filter(r=>r.region===g).forEach(r=>sec.appendChild(card(r)));list.appendChild(sec);});}
+  if(!items.length)list.innerHTML=`<p style="color:var(--muted);text-align:center;margin-top:30px">No matches.</p>`;
+  if(mapOn)drawMarkers();
 }
 
-function card(x){
-  const el=document.createElement("div");
-  el.className="card"+(x.status==="today"?" today":"");
-  const f=fitOf(x);
-  const tel=String(x.phone||"").replace(/\D/g,"");
-  const callBtn=tel.length===10
-    ? `<a class="btn call" href="tel:+1${tel}">📞 Call</a>`
-    : `<a class="btn call off" href="https://${x.site}" target="_blank">📞 Find #</a>`;
-  const mapQ=encodeURIComponent(x.map||x.name);
+function hoursLine(x){const h=BID[x.id].h;
+  if(h.unknown)return `<div class="hrs u">🕑 ${h.week}</div>`;
+  const t=h.d[TODAY];
+  if(t)return `<div class="hrs o">🟢 Open today (${DOW[TODAY]}) · ${t}</div><div class="week">${h.week}</div>`;
+  return `<div class="hrs c">🔴 Closed today (${DOW[TODAY]})</div><div class="week">${h.week}</div>`;}
 
+function card(x){const b=BID[x.id];const el=document.createElement("div");el.className="card"+(open_(x)?" open":"");el.id="card-"+x.id;
+  const f=fitOf(x);const tel=String(b.phone||"").replace(/\D/g,"");
+  const callBtn=tel.length===10?`<a class="btn call" href="tel:+1${tel}">📞 Call</a>`:(b.site?`<a class="btn call off" href="https://${b.site}" target="_blank">📞 Find #</a>`:`<span class="btn call off">No #</span>`);
+  const mapQ=encodeURIComponent(b.name+" "+b.area);
   const opts=STATUS.map(s=>`<option value="${s.k}"${s.k===x.status?" selected":""}>${s.label}</option>`).join("");
-  const scoreRows=SCORES.map(s=>{
-    const cur=parseFloat(x[s.k])||0;
-    const pips=[1,2,3,4,5].map(n=>`<div class="pip${n<=cur?" on":""}" data-id="${x.id}" data-f="${s.k}" data-v="${n}">${n}</div>`).join("");
-    return `<div class="srow"><div class="slab">${s.label}<small>${s.hint}</small></div><div class="pips">${pips}</div></div>`;
-  }).join("");
-
-  el.innerHTML=`
-    <div class="row1">
-      <div><p class="name">${x.name}</p><div class="area">${x.area}</div></div>
-      ${f!=null?`<div class="fit"><div class="n" style="color:${fitColor(f)}">${f}</div><div class="l">Fit</div></div>`
-              :`<span class="badge b-${x.status}">${SLABEL[x.status]||x.status}</span>`}
-    </div>
-    <div class="meta">
-      ${x.rent?`<span>💵 <b>${x.rent}</b></span>`:""}
-      ${x.hours?`<span>🕑 ${x.hours}</span>`:""}
-      ${fmtPhone(x.phone)?`<span>☎ ${fmtPhone(x.phone)}</span>`:""}
-    </div>
+  const scoreRows=SCORES.map(s=>{const cur=parseFloat(x[s.k])||0;const pips=[1,2,3,4,5].map(n=>`<div class="pip${n<=cur?" on":""}" data-id="${x.id}" data-f="${s.k}" data-v="${n}">${n}</div>`).join("");
+    return `<div class="srow"><div class="slab">${s.label}<small>${s.hint}</small></div><div class="pips">${pips}</div></div>`;}).join("");
+  el.innerHTML=`<div class="row1"><div><p class="name">${x.name}</p><div class="area">${b.area}</div></div>
+    ${f!=null?`<div class="fit"><div class="n" style="color:${fitColor(f)}">${f}</div><div class="l">Fit</div></div>`:`<span class="badge" style="background:${REGION_COLOR[x.region]};color:#04121f">${SLABEL[x.status]||x.status}</span>`}</div>
+    ${hoursLine(x)}
+    <div class="meta">${x.rent?`<span>💵 <b>$${x.rent}</b></span>`:""}${fmtPhone(tel)?`<span>☎ ${fmtPhone(tel)}</span>`:""}</div>
     <select class="status" data-id="${x.id}">${opts}</select>
     <div class="scores">${scoreRows}</div>
     <textarea class="notes" data-id="${x.id}" placeholder="Notes — vibe, red flags, who you talked to…">${x.notes||""}</textarea>
-    <div class="btns">${callBtn}
-      <a class="btn" href="https://www.google.com/maps/search/?api=1&query=${mapQ}" target="_blank">📍 Map</a>
-      <a class="btn" href="https://${x.site}" target="_blank">🌐 Site</a>
-    </div>`;
-
-  el.querySelectorAll(".pip").forEach(p=>p.onclick=()=>{
-    const cur=parseFloat(ROWS.find(r=>r.id===p.dataset.id)[p.dataset.f])||0;
-    const v=(cur===+p.dataset.v)?"":+p.dataset.v;   // tap same pip to clear
-    patch(p.dataset.id,p.dataset.f,v);
-  });
+    <div class="btns">${callBtn}${b.lat?`<a class="btn" href="https://www.google.com/maps/search/?api=1&query=${mapQ}" target="_blank">📍 Map</a>`:""}${b.site?`<a class="btn" href="https://${b.site}" target="_blank">🌐 Site</a>`:""}</div>`;
+  el.querySelectorAll(".pip").forEach(p=>p.onclick=()=>{const cur=parseFloat(ROWS.find(r=>r.id===p.dataset.id)[p.dataset.f])||0;patch(p.dataset.id,p.dataset.f,(cur===+p.dataset.v)?"":+p.dataset.v);});
   el.querySelector(".status").onchange=e=>patch(e.target.dataset.id,"status",e.target.value);
-  el.querySelector(".notes").onblur=e=>{const r=ROWS.find(r=>r.id===e.target.dataset.id);
-    if((r.notes||"")!==e.target.value) patch(e.target.dataset.id,"notes",e.target.value);};
-  return el;
+  el.querySelector(".notes").onblur=e=>{const r=ROWS.find(r=>r.id===e.target.dataset.id);if((r.notes||"")!==e.target.value)patch(e.target.dataset.id,"notes",e.target.value);};
+  return el;}
+
+/* ---------- map ---------- */
+let mapObj=null,markerLayer=null,mapOn=false;
+function toggleMap(){mapOn=!mapOn;const m=document.getElementById("map");m.style.display=mapOn?"block":"none";
+  document.getElementById("maptoggle").textContent=mapOn?"🗺 Hide map":"🗺 Map";
+  if(mapOn){if(!mapObj){mapObj=L.map("map",{scrollWheelZoom:false}).setView([27.85,-82.64],10);
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(mapObj);
+    markerLayer=L.layerGroup().addTo(mapObj);}
+    setTimeout(()=>{mapObj.invalidateSize();drawMarkers();},60);}
 }
+function drawMarkers(){if(!mapObj)return;markerLayer.clearLayers();const pts=[];
+  visible().forEach(x=>{const b=BID[x.id];if(b.lat==null)return;const col=open_(x)?"#22c55e":REGION_COLOR[x.region];
+    const mk=L.circleMarker([b.lat,b.lng],{radius:8,color:"#0f1115",weight:2,fillColor:col,fillOpacity:1});
+    const t=b.h.unknown?b.h.week:(b.h.d[TODAY]?`<span class="pc-hrs pc-o">🟢 Open today · ${b.h.d[TODAY]}</span>`:`<span class="pc-hrs pc-c">🔴 Closed today</span>`);
+    const tel=String(b.phone||"").replace(/\D/g,"");
+    mk.bindPopup(`<b>${x.name}</b><br>${b.area}<br>${t}<br>`+
+      (tel.length===10?`<a class="pc-btn" href="tel:+1${tel}">Call</a>`:"")+
+      `<a class="pc-btn grey" href="#" onclick="goCard('${x.id}');return false">View</a>`);
+    mk.addTo(markerLayer);pts.push([b.lat,b.lng]);});
+  if(pts.length)mapObj.fitBounds(pts,{padding:[30,30],maxZoom:12});
+}
+function goCard(id){if(mapObj&&mapObj.closePopup)mapObj.closePopup();const el=document.getElementById("card-"+id);
+  if(el){el.scrollIntoView({behavior:"smooth",block:"center"});el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");}}
 </script>
 </body>
 </html>
