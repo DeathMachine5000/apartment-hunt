@@ -3,732 +3,278 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DAEMON // RIM Operations</title>
+<title>Pinellas Apartment Hunt — CRM</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:       #0a0c0f;
-    --surface:  #111418;
-    --border:   #1e2530;
-    --accent:   #00ff88;
-    --accent2:  #0088ff;
-    --warn:     #ffaa00;
-    --danger:   #ff3355;
-    --muted:    #4a5568;
-    --text:     #c8d6e5;
-    --text-dim: #718096;
-    --mono:     'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  :root{
+    --bg:#0f1115;--card:#181b22;--card2:#1f2530;--line:#2a3140;--text:#e8ecf3;--muted:#96a0b5;
+    --accent:#4f9cff;--today:#22c55e;--call:#f5a623;--toured:#4f9cff;--top:#a855f7;
+    --passed:#5b6472;--parked:#3b424f;--browse:#14b8a6;--booked:#0ea5e9;
+    --g1:#22c55e;--g2:#4f9cff;--g3:#f5a623;--g4:#ef4444;
   }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.5;
-    min-height: 100vh;
-  }
-
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-  }
-
-  .logo { font-size: 16px; font-weight: 700; letter-spacing: 0.15em; color: var(--accent); }
-  .logo span { color: var(--text-dim); font-weight: 400; }
-
-  .header-meta { display: flex; gap: 20px; align-items: center; color: var(--text-dim); font-size: 11px; }
-  .db-status { display: flex; align-items: center; gap: 5px; }
-
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-  .dot.ok  { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
-  .dot.err { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
-
-  /* ── Summary bars ── */
-  .summary-bar {
-    display: flex;
-    gap: 1px;
-    background: var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .summary-tile {
-    flex: 1;
-    background: var(--surface);
-    padding: 10px 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .summary-tile .label { color: var(--text-dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
-  .summary-tile .value { font-size: 22px; font-weight: 700; color: var(--accent); }
-  .summary-tile .value.warn   { color: var(--warn); }
-  .summary-tile .value.danger { color: var(--danger); }
-  .summary-tile .sub { font-size: 10px; color: var(--text-dim); }
-
-  /* ── Section divider ── */
-  .section-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 20px;
-    background: #0d1117;
-    border-top: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .section-label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: var(--accent2);
-    white-space: nowrap;
-  }
-
-  .section-sub { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
-  .section-rule { flex: 1; height: 1px; background: var(--border); }
-
-  /* ── Grid ── */
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
-    background: var(--border);
-    padding: 1px;
-  }
-
-  .panel { background: var(--surface); display: flex; flex-direction: column; }
-  .panel.full-width { grid-column: 1 / -1; }
-
-  .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 14px;
-    border-bottom: 1px solid var(--border);
-    background: #0d1117;
-  }
-
-  .panel-title {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--accent2);
-  }
-
-  .panel-count {
-    font-size: 10px;
-    color: var(--text-dim);
-    background: var(--border);
-    padding: 1px 6px;
-    border-radius: 3px;
-  }
-
-  /* ── Tables ── */
-  .panel-body { overflow-x: auto; flex: 1; }
-
-  table { width: 100%; border-collapse: collapse; }
-
-  thead th {
-    padding: 6px 14px;
-    text-align: left;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--text-dim);
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-
-  tbody tr { border-bottom: 1px solid #151a22; transition: background 0.1s; }
-  tbody tr:hover { background: #141920; }
-  tbody tr:last-child { border-bottom: none; }
-
-  td { padding: 7px 14px; vertical-align: middle; white-space: nowrap; }
-
-  /* ── Cell types ── */
-  .hostname { color: var(--text); font-weight: 600; }
-  .ip       { color: var(--text-dim); font-family: var(--mono); }
-  .role     { color: var(--text-dim); font-size: 11px; }
-
-  .zone-tag {
-    font-size: 10px; padding: 1px 6px; border-radius: 3px;
-    background: var(--border); color: var(--text-dim); letter-spacing: 0.05em;
-  }
-
-  .domain-tag {
-    font-size: 10px; padding: 1px 6px; border-radius: 3px;
-    background: #0088ff15; color: var(--accent2);
-    letter-spacing: 0.05em; text-transform: uppercase;
-  }
-
-  .xp-val { font-size: 10px; color: var(--accent); font-weight: 600; }
-
-  .ellipsis {
-    max-width: 260px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .na-text {
-    color: var(--text-dim); font-size: 11px;
-    max-width: 240px; overflow: hidden; text-overflow: ellipsis; display: block;
-  }
-
-  .blocker-text {
-    color: var(--danger); font-size: 11px;
-    max-width: 240px; overflow: hidden; text-overflow: ellipsis; display: block;
-  }
-
-  /* ── Status badges ── */
-  .badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 10px; padding: 2px 7px; border-radius: 3px;
-    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  }
-
-  .badge::before {
-    content: ''; width: 5px; height: 5px; border-radius: 50%;
-  }
-
-  /* green — online/running/active/achieved */
-  .badge.online, .badge.running, .badge.active, .badge.achieved {
-    background: #00ff8815; color: var(--accent);
-  }
-  .badge.online::before, .badge.running::before,
-  .badge.active::before, .badge.achieved::before {
-    background: var(--accent); box-shadow: 0 0 4px var(--accent);
-  }
-
-  /* red — offline/error/blocked/missed */
-  .badge.offline, .badge.stopped, .badge.error, .badge.blocked, .badge.missed {
-    background: #ff335515; color: var(--danger);
-  }
-  .badge.offline::before, .badge.stopped::before, .badge.error::before,
-  .badge.blocked::before, .badge.missed::before {
-    background: var(--danger);
-  }
-
-  /* yellow — unknown/degraded/pending/open */
-  .badge.unknown, .badge.degraded, .badge.pending, .badge.open {
-    background: #ffaa0015; color: var(--warn);
-  }
-  .badge.unknown::before, .badge.degraded::before,
-  .badge.pending::before, .badge.open::before {
-    background: var(--warn);
-  }
-
-  /* blue — in-progress */
-  .badge.in-progress {
-    background: #0088ff15; color: var(--accent2);
-  }
-  .badge.in-progress::before {
-    background: var(--accent2); box-shadow: 0 0 4px var(--accent2);
-  }
-
-  /* dim — complete/parked */
-  .badge.complete, .badge.parked {
-    background: #ffffff08; color: var(--text-dim);
-  }
-  .badge.complete::before, .badge.parked::before { background: var(--muted); }
-
-  /* ── Staleness indicators ── */
-  .ts { color: var(--text-dim); font-size: 11px; }
-
-  .ts-wrap { display: inline-flex; align-items: center; gap: 5px; }
-
-  .stale-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-
-  .ts-fresh  .stale-dot { background: var(--accent);  box-shadow: 0 0 4px var(--accent); }
-  .ts-warn   .stale-dot { background: var(--warn);    box-shadow: 0 0 4px var(--warn); }
-  .ts-danger .stale-dot { background: var(--danger);  box-shadow: 0 0 4px var(--danger); }
-
-  .ts-fresh .ts { color: var(--text-dim); }
-  .ts-warn  .ts { color: var(--warn); }
-  .ts-danger .ts { color: var(--danger); }
-
-  .stale-label {
-    font-size: 9px; padding: 1px 4px; border-radius: 2px;
-    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  }
-
-  .ts-warn   .stale-label { background: #ffaa0020; color: var(--warn); }
-  .ts-danger .stale-label { background: #ff335520; color: var(--danger); }
-
-  /* ── Deadline formatting ── */
-  .dl-overdue { color: var(--danger); font-size: 11px; font-weight: 600; }
-  .dl-soon    { color: var(--warn);   font-size: 11px; }
-  .dl-ok      { color: var(--text-dim); font-size: 11px; }
-  .dl-none    { color: var(--muted);  font-size: 11px; }
-
-  /* ── Events ── */
-  .event-type {
-    font-size: 10px; padding: 1px 6px; border-radius: 3px;
-    background: #0088ff15; color: var(--accent2);
-    font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase;
-  }
-
-  .payload-cell {
-    color: var(--text-dim); font-size: 11px;
-    max-width: 300px; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  /* ── Empty / loading ── */
-  .empty-row td {
-    text-align: center; color: var(--text-dim);
-    padding: 20px; font-size: 11px; letter-spacing: 0.05em;
-  }
-
-  #refresh-ts { font-size: 10px; color: var(--text-dim); }
-
-  .blink { animation: blink 0.6s ease-in-out; }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.3; }
-  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--text);padding-bottom:50px}
+  header{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.93);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:13px 16px 9px}
+  h1{margin:0;font-size:18px}
+  .date{color:var(--muted);font-size:12px;margin-top:2px}
+  .sync{float:right;font-size:11px;color:var(--muted);margin-top:2px}
+  .sync.ok{color:var(--today)} .sync.err{color:var(--g4)}
+  .actions{margin:12px 16px 2px;background:linear-gradient(135deg,#182233,#141b26);
+    border:1px solid #2b3a55;border-radius:14px;padding:13px 15px}
+  .actions h2{margin:0 0 7px;font-size:11.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--accent)}
+  .act{display:flex;gap:9px;font-size:14px;margin:6px 0;line-height:1.35}
+  .num{flex:0 0 19px;height:19px;border-radius:50%;background:var(--accent);color:#001a3a;
+    font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .lead{margin:12px 16px 2px}
+  .lead h2{font-size:11.5px;text-transform:uppercase;letter-spacing:1.3px;color:var(--top);margin:0 0 8px}
+  .lrow{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);
+    border-radius:10px;padding:9px 12px;margin-bottom:7px}
+  .lrow .r{font-weight:700;color:var(--muted);width:18px}
+  .lrow .fs{margin-left:auto;font-weight:800;font-size:16px}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:12px 16px 4px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:7px 13px;border-radius:999px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#04213f;font-weight:600}
+  .wrap{padding:6px 16px}
+  .group{margin-top:16px}
+  .group h3{font-size:11.5px;letter-spacing:1.1px;text-transform:uppercase;color:var(--muted);
+    margin:0 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;position:relative}
+  .card.today{border-color:var(--today);box-shadow:0 0 0 1px rgba(34,197,94,.3)}
+  .row1{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .name{font-size:16px;font-weight:650;margin:0}
+  .area{color:var(--muted);font-size:12px;margin-top:3px}
+  .fit{flex:0 0 auto;text-align:center;min-width:52px}
+  .fit .n{font-size:22px;font-weight:800;line-height:1}
+  .fit .l{font-size:9px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+  .meta{display:flex;flex-wrap:wrap;gap:5px 13px;margin:9px 0 4px;font-size:12px;color:var(--muted)}
+  .meta b{color:var(--text)}
+  select.status{background:var(--card2);color:var(--text);border:1px solid var(--line);border-radius:8px;
+    padding:6px 8px;font-size:12.5px;font-weight:600;margin-top:8px}
+  .scores{margin-top:11px;display:grid;gap:8px}
+  .srow{display:flex;align-items:center;gap:8px}
+  .slab{flex:0 0 108px;font-size:12px}
+  .slab small{display:block;color:var(--muted);font-size:10px;line-height:1.15}
+  .pips{display:flex;gap:5px}
+  .pip{width:26px;height:26px;border-radius:7px;border:1px solid var(--line);background:var(--card2);
+    color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .pip.on{background:var(--accent);border-color:var(--accent);color:#04213f;font-weight:700}
+  textarea.notes{width:100%;margin-top:10px;background:var(--card2);color:var(--text);border:1px solid var(--line);
+    border-radius:9px;padding:9px;font-size:12.5px;font-family:inherit;resize:vertical;min-height:44px}
+  .btns{display:flex;gap:8px;margin-top:11px}
+  .btn{flex:1;text-align:center;text-decoration:none;font-size:13px;font-weight:600;padding:10px 6px;
+    border-radius:10px;border:1px solid var(--line);color:var(--text);background:var(--card2)}
+  .btn.call{background:var(--today);color:#04210f;border-color:var(--today)}
+  .btn.call.off{background:var(--card2);color:var(--muted)}
+  .badge{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:4px 8px;border-radius:7px;color:#04121f}
+  .b-today{background:var(--today)}.b-call{background:var(--call)}.b-booked{background:var(--booked)}
+  .b-toured{background:var(--toured)}.b-top{background:var(--top);color:#fff}
+  .b-passed{background:var(--passed);color:#d7dce6}.b-parked{background:var(--parked);color:#aeb6c4}.b-browse{background:var(--browse)}
+  /* setup */
+  .setup{max-width:520px;margin:60px auto;padding:24px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+  .setup h2{margin:0 0 6px} .setup p{color:var(--muted);font-size:13.5px;line-height:1.5}
+  .setup input{width:100%;padding:12px;margin:12px 0;background:var(--bg);border:1px solid var(--line);
+    border-radius:10px;color:var(--text);font-size:14px}
+  .setup button{width:100%;padding:13px;background:var(--accent);color:#04213f;border:0;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer}
+  .foot{margin:22px 16px 0;padding:14px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);font-size:12px;line-height:1.5}
+  .hide{display:none!important}
+  .reset{display:block;text-align:center;color:var(--muted);font-size:11px;margin:14px;text-decoration:underline}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="logo">DAEMON <span>// RIM Operations Center</span></div>
-  <div class="header-meta">
-    <div class="db-status">
-      <div class="dot" id="db-dot"></div>
-      <span id="db-label">connecting...</span>
-    </div>
-    <div id="refresh-ts">—</div>
-  </div>
-</header>
-
-<!-- ── IWM Summary ── -->
-<div class="summary-bar">
-  <div class="summary-tile">
-    <div class="label">Nodes</div>
-    <div class="value" id="s-nodes-total">—</div>
-    <div class="sub" id="s-nodes-online">— online</div>
-  </div>
-  <div class="summary-tile">
-    <div class="label">Services</div>
-    <div class="value" id="s-svc-total">—</div>
-    <div class="sub" id="s-svc-running">— running</div>
-  </div>
-  <div class="summary-tile">
-    <div class="label">Events (24h)</div>
-    <div class="value" id="s-events">—</div>
-    <div class="sub">iwm_events</div>
-  </div>
+<div id="setup" class="setup hide">
+  <h2>🔌 Connect the backend</h2>
+  <p>Paste the <b>Web App URL</b> from your Apps Script deployment (see <b>Code.gs</b> for the 3-click setup). You only do this once per device; both phones use the same URL.</p>
+  <input id="urlInput" placeholder="https://script.google.com/macros/s/…/exec">
+  <button onclick="saveUrl()">Connect</button>
 </div>
 
-<!-- ── IWM Grid ── -->
-<div class="grid">
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">Nodes</span>
-      <span class="panel-count" id="nodes-count">—</span>
-    </div>
-    <div class="panel-body">
-      <table>
-        <thead><tr>
-          <th>Hostname</th><th>IP</th><th>Zone</th>
-          <th>Role</th><th>Status</th><th>Last Seen</th>
-        </tr></thead>
-        <tbody id="nodes-tbody">
-          <tr class="empty-row"><td colspan="6">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
+<div id="app" class="hide">
+  <header>
+    <span class="sync" id="sync">…</span>
+    <h1>🏝️ Pinellas Hunt — CRM</h1>
+    <div class="date" id="date"></div>
+  </header>
+
+  <div class="actions">
+    <h2>▶ Do next</h2>
+    <div class="act"><span class="num">1</span><div><b>Call VIV</b> → tour today (12–5). <a href="tel:+18449332213" style="color:#22c55e">844-933-2213</a></div></div>
+    <div class="act"><span class="num">2</span><div><b>Call Arya</b> → tour today (12–5). <a href="tel:+17275948301" style="color:#22c55e">727-594-8301</a></div></div>
+    <div class="act"><span class="num">3</span><div><b>Walk Gulfport</b> — seeing it in person is the tour.</div></div>
+    <div class="act"><span class="num">★</span><div><b>Score every place you visit</b> — the Fit Score does the ranking for you.</div></div>
   </div>
 
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">Services</span>
-      <span class="panel-count" id="svc-count">—</span>
-    </div>
-    <div class="panel-body">
-      <table>
-        <thead><tr>
-          <th>Service</th><th>Node</th><th>Port</th>
-          <th>Status</th><th>Last Checked</th>
-        </tr></thead>
-        <tbody id="svc-tbody">
-          <tr class="empty-row"><td colspan="5">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
+  <div class="lead hide" id="lead"><h2>🏆 Top fit so far</h2><div id="leadRows"></div></div>
 
-  <div class="panel full-width">
-    <div class="panel-header">
-      <span class="panel-title">Recent Events</span>
-      <span class="panel-count" id="events-count">—</span>
-    </div>
-    <div class="panel-body">
-      <table>
-        <thead><tr>
-          <th>Timestamp</th><th>Node</th><th>Service</th>
-          <th>Type</th><th>Payload</th>
-        </tr></thead>
-        <tbody id="events-tbody">
-          <tr class="empty-row"><td colspan="5">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+  <div class="chips" id="chips"></div>
+  <div class="wrap" id="list"></div>
 
-<!-- ── PWM Section ── -->
-<div class="section-divider">
-  <span class="section-label">PWM</span>
-  <span class="section-sub">Personal World Model</span>
-  <span class="section-rule"></span>
-</div>
-
-<!-- ── PWM Summary ── -->
-<div class="summary-bar">
-  <div class="summary-tile">
-    <div class="label">Main Quests</div>
-    <div class="value" id="pwm-s-quests">—</div>
-    <div class="sub" id="pwm-s-quests-sub">— active</div>
-  </div>
-  <div class="summary-tile">
-    <div class="label">Obligations</div>
-    <div class="value" id="pwm-s-obs">—</div>
-    <div class="sub" id="pwm-s-obs-sub">— open</div>
-  </div>
-  <div class="summary-tile">
-    <div class="label">Milestones</div>
-    <div class="value" id="pwm-s-miles">—</div>
-    <div class="sub" id="pwm-s-miles-sub">— achieved</div>
-  </div>
-</div>
-
-<!-- ── PWM Grid ── -->
-<div class="grid">
-  <!-- Main Quests — full width -->
-  <div class="panel full-width">
-    <div class="panel-header">
-      <span class="panel-title">Main Quests</span>
-      <span class="panel-count" id="quests-count">—</span>
-    </div>
-    <div class="panel-body">
-      <table>
-        <thead><tr>
-          <th>Domain</th><th>Title</th><th>Status</th>
-          <th>Next Action / Blocker</th><th>Due</th><th>XP</th>
-        </tr></thead>
-        <tbody id="quests-tbody">
-          <tr class="empty-row"><td colspan="6">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Obligations -->
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">Obligations</span>
-      <span class="panel-count" id="obs-count">—</span>
-    </div>
-    <div class="panel-body">
-      <table>
-        <thead><tr>
-          <th>Domain</th><th>Title</th><th>Counterparty</th>
-          <th>Status</th><th>Deadline</th>
-        </tr></thead>
-        <tbody id="obs-tbody">
-          <tr class="empty-row"><td colspan="5">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Milestones -->
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">Milestones</span>
-      <span class="panel-count" id="miles-count">—</span>
-    </div>
-    <div class="panel-body">
-      <table>
-        <thead><tr>
-          <th>Domain</th><th>Title</th><th>Status</th>
-          <th>Target / Achieved</th><th>XP</th>
-        </tr></thead>
-        <tbody id="miles-tbody">
-          <tr class="empty-row"><td colspan="5">loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
+  <div class="foot">
+    <b>Fit Score</b> is weighted for you two: Quiet 25% · Calm crowd (not frat) 25% · Neighborhood 25% · Nearby 15% · Property 10%.
+    Party-ish stuff doesn't lift it. Edits save to the shared Sheet instantly — you both see the same data.
+    <a class="reset" href="#" onclick="clearUrl();return false">Reconnect / change backend URL</a>
   </div>
 </div>
 
 <script>
-const REFRESH_MS      = 30000;
-const STALE_WARN_MS   = 10 * 60 * 1000;
-const STALE_DANGER_MS = 30 * 60 * 1000;
+const LS_KEY="aptcrm_api_url";
+let API = localStorage.getItem(LS_KEY) || "";
+let ROWS=[], ORDER=[], active="all";
 
-function statusBadge(s) {
-  const cls = (s || 'unknown').toLowerCase().replace(/[\s_]+/g, '-');
-  return `<span class="badge ${cls}">${s || 'unknown'}</span>`;
+const STATUS=[
+ {k:"today",label:"Open Today"},{k:"call",label:"To Call"},{k:"booked",label:"Tour Booked"},
+ {k:"toured",label:"Toured"},{k:"top",label:"TOP PICK"},{k:"passed",label:"Passed"},
+ {k:"parked",label:"Parked"},{k:"browse",label:"Browse"}
+];
+const SLABEL=Object.fromEntries(STATUS.map(s=>[s.k,s.label]));
+const SCORES=[
+ {k:"s_quiet",label:"Quiet",w:.25,hint:"soundproof / noise"},
+ {k:"s_maturity",label:"Calm crowd",w:.25,hint:"mature, NOT frat"},
+ {k:"s_hood",label:"Neighborhood",w:.25,hint:"art / food / walk"},
+ {k:"s_amen",label:"Nearby",w:.15,hint:"amenities around"},
+ {k:"s_prop",label:"Property",w:.10,hint:"building feel"}
+];
+const FILTERS=[["all","All"],["today","Open Today"],["call","To Call"],["booked","Booked"],
+ ["toured","Toured"],["top","Top Pick"],["ranked","Ranked ▾"],["parked","Parked"]];
+
+function fitOf(row){
+  let ws=0,acc=0;
+  SCORES.forEach(s=>{const v=parseFloat(row[s.k]); if(v>=1){acc+=v*s.w;ws+=s.w;}});
+  if(ws===0) return null;
+  return Math.round((acc/ws)*20);
 }
+function fitColor(f){return f>=80?"var(--g1)":f>=60?"var(--g2)":f>=40?"var(--g3)":"var(--g4)";}
+function fmtPhone(p){p=String(p||"").replace(/\D/g,"");return p.length===10?`(${p.slice(0,3)}) ${p.slice(3,6)}-${p.slice(6)}`:"";}
 
-function staleClass(ts) {
-  if (!ts) return 'ts-danger';
-  const age = Date.now() - new Date(ts).getTime();
-  if (age > STALE_DANGER_MS) return 'ts-danger';
-  if (age > STALE_WARN_MS)   return 'ts-warn';
-  return 'ts-fresh';
+/* ---------- boot ---------- */
+if(!API){ show("setup"); } else { show("app"); boot(); }
+function show(id){document.getElementById("setup").classList.toggle("hide",id!=="setup");
+  document.getElementById("app").classList.toggle("hide",id!=="app");}
+function saveUrl(){const v=document.getElementById("urlInput").value.trim();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\//.test(v)){alert("That doesn't look like a Web App /exec URL.");return;}
+  localStorage.setItem(LS_KEY,v);API=v;show("app");boot();}
+function clearUrl(){localStorage.removeItem(LS_KEY);location.reload();}
+
+function boot(){
+  document.getElementById("date").textContent=
+    new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})+"  ·  green = open today";
+  buildChips(); load();
 }
+function setSync(t,cls){const e=document.getElementById("sync");e.textContent=t;e.className="sync "+(cls||"");}
 
-function staleAge(ts) {
-  if (!ts) return 'never';
-  const age = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
-  if (age < 60)   return `${age}s ago`;
-  if (age < 3600) return `${Math.floor(age/60)}m ago`;
-  return `${Math.floor(age/3600)}h ago`;
-}
-
-function fmtTsStale(ts) {
-  if (!ts) {
-    return `<span class="ts-wrap ts-danger">
-      <span class="stale-dot"></span><span class="ts">—</span>
-      <span class="stale-label">no data</span></span>`;
-  }
-  const d = new Date(ts);
-  const formatted = d.toLocaleString('en-US', {
-    month:'2-digit', day:'2-digit',
-    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
+function load(){
+  setSync("syncing…");
+  fetch(API).then(r=>r.json()).then(d=>{
+    if(!d.ok) throw new Error(d.error||"bad response");
+    ROWS=d.rows;
+    if(!ORDER.length) ORDER=[...new Set(ROWS.map(r=>r.group))];
+    setSync("✓ synced","ok"); render();
+  }).catch(e=>{ setSync("✗ offline","err");
+    if(!ROWS.length) document.getElementById("list").innerHTML=
+      `<p style="color:var(--muted);text-align:center;margin-top:30px">Couldn't reach the backend.<br>Check the Web App URL — <a href="#" onclick="clearUrl();return false" style="color:var(--accent)">reconnect</a>.</p>`;
   });
-  const cls = staleClass(ts);
-  const label = cls === 'ts-fresh' ? '' :
-    `<span class="stale-label">${staleAge(ts)}</span>`;
-  return `<span class="ts-wrap ${cls}" title="${d.toISOString()}">
-    <span class="stale-dot"></span><span class="ts">${formatted}</span>${label}</span>`;
 }
 
-function fmtTs(ts) {
-  if (!ts) return '<span class="ts">—</span>';
-  const d = new Date(ts);
-  return `<span class="ts">${d.toLocaleString('en-US', {
-    month:'2-digit', day:'2-digit',
-    hour:'2-digit', minute:'2-digit', second:'2-digit', hour12: false
-  })}</span>`;
+function patch(id,field,value){
+  const row=ROWS.find(r=>r.id===id); if(row) row[field]=value;   // optimistic
+  render();
+  setSync("saving…");
+  fetch(API,{method:"POST",body:JSON.stringify({id,updates:{[field]:value}})})
+    .then(r=>r.json()).then(d=>setSync(d.ok?"✓ saved":"✗ error",d.ok?"ok":"err"))
+    .catch(()=>setSync("✗ save failed","err"));
 }
 
-function fmtPayload(p) {
-  if (!p) return '<span class="payload-cell">—</span>';
-  const s = typeof p === 'string' ? p : JSON.stringify(p);
-  return `<span class="payload-cell" title="${s.replace(/"/g,'&quot;')}">${s}</span>`;
+/* ---------- chips ---------- */
+function buildChips(){
+  const c=document.getElementById("chips");c.innerHTML="";
+  FILTERS.forEach(([k,label])=>{
+    const el=document.createElement("div");
+    el.className="chip"+(k===active?" on":"");el.textContent=label;
+    el.onclick=()=>{active=k;[...c.children].forEach(x=>x.classList.remove("on"));el.classList.add("on");render();};
+    c.appendChild(el);
+  });
 }
 
-function fmtDate(dateStr) {
-  if (!dateStr) return '<span class="dl-none">—</span>';
-  const d = new Date(dateStr);
-  const diffDays = Math.ceil((d - Date.now()) / 86400000);
-  const fmt = d.toLocaleDateString('en-US', { month:'2-digit', day:'2-digit', year:'2-digit' });
-  if (diffDays < 0)  return `<span class="dl-overdue">${fmt} OVERDUE</span>`;
-  if (diffDays <= 7) return `<span class="dl-soon">${fmt} (${diffDays}d)</span>`;
-  return `<span class="dl-ok">${fmt}</span>`;
+/* ---------- render ---------- */
+function render(){
+  // leaderboard
+  const scored=ROWS.map(r=>({r,f:fitOf(r)})).filter(x=>x.f!=null).sort((a,b)=>b.f-a.f);
+  const lead=document.getElementById("lead"),lr=document.getElementById("leadRows");
+  if(scored.length){lead.classList.remove("hide");lr.innerHTML="";
+    scored.slice(0,3).forEach((x,i)=>{const d=document.createElement("div");d.className="lrow";
+      d.innerHTML=`<span class="r">${i+1}</span><div><div style="font-weight:600">${x.r.name}</div>
+        <div style="font-size:11px;color:var(--muted)">${x.r.area}</div></div>
+        <span class="fs" style="color:${fitColor(x.f)}">${x.f}</span>`;lr.appendChild(d);});
+  } else lead.classList.add("hide");
+
+  const list=document.getElementById("list");list.innerHTML="";
+
+  if(active==="ranked"){
+    const sec=document.createElement("div");sec.className="group";
+    sec.innerHTML="<h3>Ranked by Fit Score</h3>";
+    ROWS.map(r=>({r,f:fitOf(r)})).sort((a,b)=>(b.f??-1)-(a.f??-1)).forEach(x=>sec.appendChild(card(x.r)));
+    list.appendChild(sec);return;
+  }
+
+  const items=ROWS.filter(r=>active==="all"||r.status===active);
+  ORDER.filter(g=>items.some(r=>r.group===g)).forEach(g=>{
+    const sec=document.createElement("div");sec.className="group";
+    sec.innerHTML=`<h3>${g}</h3>`;
+    items.filter(r=>r.group===g).forEach(r=>sec.appendChild(card(r)));
+    list.appendChild(sec);
+  });
+  if(!items.length) list.innerHTML=`<p style="color:var(--muted);text-align:center;margin-top:30px">Nothing in this filter.</p>`;
 }
 
-function fmtNextAction(q) {
-  if (q.status === 'BLOCKED' && q.blocker) {
-    const esc = q.blocker.replace(/"/g, '&quot;');
-    return `<span class="blocker-text" title="${esc}">\u2298 ${q.blocker}</span>`;
-  }
-  if (q.next_action) {
-    const esc = q.next_action.replace(/"/g, '&quot;');
-    return `<span class="na-text" title="${esc}">${q.next_action}</span>`;
-  }
-  return '<span class="ts">—</span>';
+function card(x){
+  const el=document.createElement("div");
+  el.className="card"+(x.status==="today"?" today":"");
+  const f=fitOf(x);
+  const tel=String(x.phone||"").replace(/\D/g,"");
+  const callBtn=tel.length===10
+    ? `<a class="btn call" href="tel:+1${tel}">📞 Call</a>`
+    : `<a class="btn call off" href="https://${x.site}" target="_blank">📞 Find #</a>`;
+  const mapQ=encodeURIComponent(x.map||x.name);
+
+  const opts=STATUS.map(s=>`<option value="${s.k}"${s.k===x.status?" selected":""}>${s.label}</option>`).join("");
+  const scoreRows=SCORES.map(s=>{
+    const cur=parseFloat(x[s.k])||0;
+    const pips=[1,2,3,4,5].map(n=>`<div class="pip${n<=cur?" on":""}" data-id="${x.id}" data-f="${s.k}" data-v="${n}">${n}</div>`).join("");
+    return `<div class="srow"><div class="slab">${s.label}<small>${s.hint}</small></div><div class="pips">${pips}</div></div>`;
+  }).join("");
+
+  el.innerHTML=`
+    <div class="row1">
+      <div><p class="name">${x.name}</p><div class="area">${x.area}</div></div>
+      ${f!=null?`<div class="fit"><div class="n" style="color:${fitColor(f)}">${f}</div><div class="l">Fit</div></div>`
+              :`<span class="badge b-${x.status}">${SLABEL[x.status]||x.status}</span>`}
+    </div>
+    <div class="meta">
+      ${x.rent?`<span>💵 <b>${x.rent}</b></span>`:""}
+      ${x.hours?`<span>🕑 ${x.hours}</span>`:""}
+      ${fmtPhone(x.phone)?`<span>☎ ${fmtPhone(x.phone)}</span>`:""}
+    </div>
+    <select class="status" data-id="${x.id}">${opts}</select>
+    <div class="scores">${scoreRows}</div>
+    <textarea class="notes" data-id="${x.id}" placeholder="Notes — vibe, red flags, who you talked to…">${x.notes||""}</textarea>
+    <div class="btns">${callBtn}
+      <a class="btn" href="https://www.google.com/maps/search/?api=1&query=${mapQ}" target="_blank">📍 Map</a>
+      <a class="btn" href="https://${x.site}" target="_blank">🌐 Site</a>
+    </div>`;
+
+  el.querySelectorAll(".pip").forEach(p=>p.onclick=()=>{
+    const cur=parseFloat(ROWS.find(r=>r.id===p.dataset.id)[p.dataset.f])||0;
+    const v=(cur===+p.dataset.v)?"":+p.dataset.v;   // tap same pip to clear
+    patch(p.dataset.id,p.dataset.f,v);
+  });
+  el.querySelector(".status").onchange=e=>patch(e.target.dataset.id,"status",e.target.value);
+  el.querySelector(".notes").onblur=e=>{const r=ROWS.find(r=>r.id===e.target.dataset.id);
+    if((r.notes||"")!==e.target.value) patch(e.target.dataset.id,"notes",e.target.value);};
+  return el;
 }
-
-async function fetchJSON(path) {
-  const r = await fetch(path);
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-  return r.json();
-}
-
-async function refresh() {
-  // IWM health + summary
-  try {
-    const [, summary] = await Promise.all([
-      fetchJSON('/api/health'),
-      fetchJSON('/api/summary')
-    ]);
-    document.getElementById('db-dot').className = 'dot ok';
-    document.getElementById('db-label').textContent = 'db connected';
-    document.getElementById('s-nodes-total').textContent = summary.nodes.total ?? '—';
-    document.getElementById('s-nodes-online').textContent = `${summary.nodes.online ?? 0} online`;
-    document.getElementById('s-svc-total').textContent = summary.services.total ?? '—';
-    document.getElementById('s-svc-running').textContent = `${summary.services.running ?? 0} running`;
-    document.getElementById('s-events').textContent = summary.events_24h ?? '—';
-  } catch {
-    document.getElementById('db-dot').className = 'dot err';
-    document.getElementById('db-label').textContent = 'db error';
-  }
-
-  // Nodes
-  try {
-    const nodes = await fetchJSON('/api/nodes');
-    document.getElementById('nodes-count').textContent = nodes.length;
-    const tb = document.getElementById('nodes-tbody');
-    tb.innerHTML = nodes.length
-      ? nodes.map(n => `<tr>
-          <td class="hostname">${n.hostname}</td>
-          <td class="ip">${n.ip || '—'}</td>
-          <td><span class="zone-tag">${n.zone_name || '—'}${n.vlan_id ? ` · VLAN ${n.vlan_id}` : ''}</span></td>
-          <td class="role">${n.role || '—'}</td>
-          <td>${statusBadge(n.status)}</td>
-          <td>${fmtTsStale(n.last_seen)}</td>
-        </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="6">no nodes registered</td></tr>';
-  } catch (e) {
-    document.getElementById('nodes-tbody').innerHTML =
-      `<tr class="empty-row"><td colspan="6">error: ${e.message}</td></tr>`;
-  }
-
-  // Services
-  try {
-    const svcs = await fetchJSON('/api/services');
-    document.getElementById('svc-count').textContent = svcs.length;
-    const tb = document.getElementById('svc-tbody');
-    tb.innerHTML = svcs.length
-      ? svcs.map(s => `<tr>
-          <td class="hostname">${s.name}</td>
-          <td class="ip">${s.node_hostname || '—'}</td>
-          <td class="ip">${s.port || '—'}</td>
-          <td>${statusBadge(s.status)}</td>
-          <td>${fmtTsStale(s.last_checked)}</td>
-        </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="5">no services registered</td></tr>';
-  } catch (e) {
-    document.getElementById('svc-tbody').innerHTML =
-      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
-  }
-
-  // Events
-  try {
-    const events = await fetchJSON('/api/events?limit=20');
-    document.getElementById('events-count').textContent = `last ${events.length}`;
-    const tb = document.getElementById('events-tbody');
-    tb.innerHTML = events.length
-      ? events.map(e => `<tr>
-          <td>${fmtTs(e.created_at)}</td>
-          <td class="ip">${e.node_hostname || '—'}</td>
-          <td class="ip">${e.service_name || '—'}</td>
-          <td><span class="event-type">${e.event_type}</span></td>
-          <td>${fmtPayload(e.payload)}</td>
-        </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="5">no events</td></tr>';
-  } catch (e) {
-    document.getElementById('events-tbody').innerHTML =
-      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
-  }
-
-  // PWM summary
-  try {
-    const pwm = await fetchJSON('/api/pwm/summary');
-    const blocked = pwm.main_quests.blocked ?? 0;
-    const overdue = pwm.obligations.overdue ?? 0;
-
-    const qEl = document.getElementById('pwm-s-quests');
-    qEl.textContent = pwm.main_quests.total ?? '—';
-    qEl.className = 'value' + (blocked > 0 ? ' warn' : '');
-    document.getElementById('pwm-s-quests-sub').textContent =
-      `${pwm.main_quests.active ?? 0} active${blocked > 0 ? `, ${blocked} blocked` : ''}`;
-
-    const oEl = document.getElementById('pwm-s-obs');
-    oEl.textContent = pwm.obligations.total ?? '—';
-    oEl.className = 'value' + (overdue > 0 ? ' danger' : '');
-    document.getElementById('pwm-s-obs-sub').textContent =
-      `${pwm.obligations.open ?? 0} open${overdue > 0 ? `, ${overdue} overdue` : ''}`;
-
-    document.getElementById('pwm-s-miles').textContent = pwm.milestones.total ?? '—';
-    document.getElementById('pwm-s-miles-sub').textContent =
-      `${pwm.milestones.achieved ?? 0} achieved`;
-  } catch {
-    // non-fatal — IWM panels still render
-  }
-
-  // PWM Main Quests
-  try {
-    const quests = await fetchJSON('/api/pwm/quests?type=MAIN&limit=50');
-    document.getElementById('quests-count').textContent = quests.length;
-    const tb = document.getElementById('quests-tbody');
-    tb.innerHTML = quests.length
-      ? quests.map(q => `<tr>
-          <td><span class="domain-tag">${q.domain || '—'}</span></td>
-          <td class="hostname ellipsis" title="${q.title}">${q.title}</td>
-          <td>${statusBadge(q.status)}</td>
-          <td class="ellipsis">${fmtNextAction(q)}</td>
-          <td>${fmtDate(q.due_date)}</td>
-          <td><span class="xp-val">${q.xp != null ? q.xp + ' xp' : '—'}</span></td>
-        </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="6">no main quests</td></tr>';
-  } catch (e) {
-    document.getElementById('quests-tbody').innerHTML =
-      `<tr class="empty-row"><td colspan="6">error: ${e.message}</td></tr>`;
-  }
-
-  // PWM Obligations
-  try {
-    const obs = await fetchJSON('/api/pwm/obligations?open_only=true&limit=50');
-    document.getElementById('obs-count').textContent = obs.length;
-    const tb = document.getElementById('obs-tbody');
-    tb.innerHTML = obs.length
-      ? obs.map(o => `<tr>
-          <td><span class="domain-tag">${o.domain || '—'}</span></td>
-          <td class="hostname ellipsis" title="${o.title}">${o.title}</td>
-          <td class="ip">${o.counterparty || '—'}</td>
-          <td>${statusBadge(o.status)}</td>
-          <td>${fmtDate(o.deadline)}</td>
-        </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="5">no open obligations</td></tr>';
-  } catch (e) {
-    document.getElementById('obs-tbody').innerHTML =
-      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
-  }
-
-  // PWM Milestones
-  try {
-    const miles = await fetchJSON('/api/pwm/milestones?limit=20');
-    document.getElementById('miles-count').textContent = miles.length;
-    const tb = document.getElementById('miles-tbody');
-    tb.innerHTML = miles.length
-      ? miles.map(m => `<tr>
-          <td><span class="domain-tag">${m.domain || '—'}</span></td>
-          <td class="hostname ellipsis" title="${m.title}">${m.title}</td>
-          <td>${statusBadge(m.status)}</td>
-          <td>${fmtDate(m.achieved_at || m.target_date)}</td>
-          <td><span class="xp-val">${m.xp != null ? m.xp + ' xp' : '—'}</span></td>
-        </tr>`).join('')
-      : '<tr class="empty-row"><td colspan="5">no milestones</td></tr>';
-  } catch (e) {
-    document.getElementById('miles-tbody').innerHTML =
-      `<tr class="empty-row"><td colspan="5">error: ${e.message}</td></tr>`;
-  }
-
-  const ts = document.getElementById('refresh-ts');
-  ts.textContent = `updated ${new Date().toLocaleTimeString('en-US', {hour12:false})}`;
-  ts.classList.remove('blink');
-  void ts.offsetWidth;
-  ts.classList.add('blink');
-}
-
-refresh();
-setInterval(refresh, REFRESH_MS);
 </script>
 </body>
 </html>
